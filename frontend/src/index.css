@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* 1. Default Dark NOC Theme */
+  :root, .theme-dark {
+    --bg-main: #0b0f19;
+    --bg-card: #151c2c;
+    --bg-sidebar: #0f172a;
+    --bg-hover: #1e293b;
+    --border-color: #243048;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent-color: #38bdf8;
+    --accent-hover: #0284c7;
+    --badge-bg: #1e293b;
+  }
+
+  /* 2. Professional Blue Theme (Grafana) */
+  .theme-blue {
+    --bg-main: #0a1128;
+    --bg-card: #101f42;
+    --bg-sidebar: #070e20;
+    --bg-hover: #1c315e;
+    --border-color: #1e3a70;
+    --text-main: #e0f2fe;
+    --text-muted: #7dd3fc;
+    --accent-color: #00d2ff;
+    --accent-hover: #0099cc;
+    --badge-bg: #1e3a70;
+  }
+
+  /* 3. Cyber Green Theme (Terminal Matrix) */
+  .theme-cyber {
+    --bg-main: #05140b;
+    --bg-card: #0c2417;
+    --bg-sidebar: #030c07;
+    --bg-hover: #143823;
+    --border-color: #1a4d2e;
+    --text-main: #e6f4ea;
+    --text-muted: #86efac;
+    --accent-color: #22c55e;
+    --accent-hover: #15803d;
+    --badge-bg: #143823;
+  }
+
+  /* 4. Deep Purple Theme (Obsidian Synthwave) */
+  .theme-purple {
+    --bg-main: #120b24;
+    --bg-card: #1d1238;
+    --bg-sidebar: #0b0717;
+    --bg-hover: #2d1d54;
+    --border-color: #3d2770;
+    --text-main: #faf5ff;
+    --text-muted: #c084fc;
+    --accent-color: #a855f7;
+    --accent-hover: #7e22ce;
+    --badge-bg: #2d1d54;
+  }
+
+  /* 5. Crimson Alert Theme (High Contrast NOC Red) */
+  .theme-crimson {
+    --bg-main: #170509;
+    --bg-card: #280a10;
+    --bg-sidebar: #0f0306;
+    --bg-hover: #3d101a;
+    --border-color: #521623;
+    --text-main: #fff1f2;
+    --text-muted: #fda4af;
+    --accent-color: #f43f5e;
+    --accent-hover: #e11d48;
+    --badge-bg: #3d101a;
+  }
+
+  /* 6. Solar Light Theme (Clean Crisp Light NOC) */
+  .theme-solar {
+    --bg-main: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-sidebar: #f1f5f9;
+    --bg-hover: #e2e8f0;
+    --border-color: #cbd5e1;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --accent-color: #0284c7;
+    --accent-hover: #0369a1;
+    --badge-bg: #e2e8f0;
+  }
+
+  body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+/* Custom scrollbar for modern NOC dashboard tables & sidebars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-color);
+}
+
+/* Custom glassmorphism cards */
+.noc-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.noc-badge {
+  background-color: var(--badge-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+}

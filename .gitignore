@@ -1,0 +1,25 @@
+# Node / Dependencies
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.DS_Store
+
+# Python / Flask
+__pycache__/
+backend/__pycache__/
+backend/services/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+ENV/
+
+# Database (optional - keep seed script to populate DB)
+backend/inventory.db
+*.sqlite3
+
+# Environment & IDE
+.env
+.vscode/
+.idea/
