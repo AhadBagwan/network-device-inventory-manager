@@ -12,38 +12,7 @@ The **Network Device Inventory Manager** is a production-like NOC telemetry dash
 
 ---
 
-## 🏗️ System Architecture
 
-```mermaid
-flowchart TD
-    subgraph Frontend ["Frontend (React 18 + Vite)"]
-        UI[NOC Dashboard UI]
-        Theme[ThemeContext API]
-        Axios[Axios API Service]
-        Recharts[Recharts Analytics]
-    end
-
-    subgraph Backend ["Backend (Flask REST API)"]
-        Routes[Flask API Routes]
-        PingService[Ping Probing Service (Ping3 + TCP Fallback)]
-        CSVService[Pandas CSV Service]
-        ORM[SQLAlchemy ORM]
-    end
-
-    subgraph Database ["Database"]
-        SQLite[(SQLite DB: inventory.db)]
-    end
-
-    UI --> Axios
-    Axios <-->|REST HTTP / JSON| Routes
-    Routes --> ORM
-    Routes --> PingService
-    Routes --> CSVService
-    ORM <--> SQLite
-    PingService -->|ICMP / Probing| ICMP[Network Devices]
-```
-
----
 
 ## ✨ Key Features
 
