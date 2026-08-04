@@ -2,12 +2,12 @@ import re
 import io
 import pandas as pd
 import ipaddress
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from database import db
 from models import User, Device, PingHistory, Activity, Notification
-from services.ping_service import execute_ping
+from services.ping_service import execute_ping, execute_ping_parallel
 from services.csv_service import generate_inventory_csv
 
 api = Blueprint('api', __name__)
@@ -16,13 +16,16 @@ EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 PASSWORD_REGEX = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_#^()-])[A-Za-z\d@$!%*?&_#^()-]{8,}$')
 MAC_REGEX = re.compile(r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$|^([0-9A-Fa-f]{4}\.){2}([0-9A-Fa-f]{4})$')
 
+def get_utc_now():
+    return datetime.now(timezone.utc)
+
 def log_activity(action: str, hostname: str, details: str):
     """Helper to log NOC activities."""
     activity = Activity(
         action=action,
         device_hostname=hostname,
         details=details,
-        timestamp=datetime.utcnow()
+        timestamp=get_utc_now()
     )
     db.session.add(activity)
 
@@ -32,7 +35,7 @@ def create_notification(title: str, message: str, severity: str = 'info'):
         title=title,
         message=message,
         severity=severity,
-        timestamp=datetime.utcnow()
+        timestamp=get_utc_now()
     )
     db.session.add(notif)
 
@@ -45,7 +48,7 @@ def api_index():
     return jsonify({
         'name': 'NetPulse NOC Telemetry Manager API',
         'status': 'Online',
-        'version': '2.3.0',
+        'version': '2.4.0',
         'auth_stack': 'Flask-JWT-Extended',
         'endpoints': {
             'register': 'POST /api/register',
@@ -254,13 +257,15 @@ def get_devices():
         query = query.order_by(sort_attr.asc())
 
     devices = query.all()
-    return jsonify([d.to_dict() for d in devices]), 200
+    # include_history=False eliminates N+1 query overhead in bulk table lists!
+    return jsonify([d.to_dict(include_history=False) for d in devices]), 200
 
 @api.route('/devices/<int:device_id>', methods=['GET'])
 @jwt_required()
 def get_device(device_id):
     device = Device.query.get_or_404(device_id)
-    return jsonify(device.to_dict()), 200
+    # include_history=True fetches history for single device detail view
+    return jsonify(device.to_dict(include_history=True)), 200
 
 @api.route('/devices', methods=['POST'])
 @jwt_required()
@@ -298,7 +303,7 @@ def add_device():
     create_notification('Asset Added', f'Added device {device.hostname} ({device.ip_address}).', 'info')
     db.session.commit()
 
-    return jsonify(device.to_dict()), 201
+    return jsonify(device.to_dict(include_history=True)), 201
 
 @api.route('/devices/<int:device_id>', methods=['PUT'])
 @jwt_required()
@@ -344,7 +349,7 @@ def update_device(device_id):
         log_activity("Edited Device", device.hostname, f"Updated hardware specs for {device.hostname}.")
 
     db.session.commit()
-    return jsonify(device.to_dict()), 200
+    return jsonify(device.to_dict(include_history=True)), 200
 
 @api.route('/devices/<int:device_id>', methods=['DELETE'])
 @jwt_required()
@@ -379,7 +384,6 @@ def import_devices_csv():
     except Exception as e:
         return jsonify({'message': f'Failed to parse CSV file: {str(e)}'}), 400
 
-    # Normalize column names
     df.columns = [c.strip().lower().replace(' ', '_') for c in df.columns]
 
     imported_count = 0
@@ -399,7 +403,6 @@ def import_devices_csv():
             errors.append(f"Row {index+2}: Hostname and IP address required.")
             continue
 
-        # Check duplicate IPv4 or Hostname
         if Device.query.filter((Device.hostname.ilike(hostname)) | (Device.ip_address == ip_address)).first():
             skipped_count += 1
             errors.append(f"Row {index+2}: Hostname '{hostname}' or IP '{ip_address}' already exists.")
@@ -486,7 +489,7 @@ def bulk_update_status():
     return jsonify({'message': f'Successfully updated status of {count} devices to {new_status}.'}), 200
 
 # ==========================================
-# PROBING & TELEMETRY ROUTES
+# PROBING & TELEMETRY ROUTES (MULTI-THREADED)
 # ==========================================
 
 @api.route('/devices/ping/<int:device_id>', methods=['POST'])
@@ -499,13 +502,13 @@ def ping_single_device(device_id):
 
     device.status = status
     device.latency = latency
-    device.last_checked = datetime.utcnow()
+    device.last_checked = get_utc_now()
 
     ping_log = PingHistory(
         device_id=device.id,
         latency=latency,
         status=status,
-        timestamp=datetime.utcnow()
+        timestamp=get_utc_now()
     )
     db.session.add(ping_log)
 
@@ -521,29 +524,32 @@ def ping_single_device(device_id):
         log_activity("Ping Executed", device.hostname, details)
 
     db.session.commit()
-    return jsonify(device.to_dict()), 200
+    return jsonify(device.to_dict(include_history=True)), 200
 
 @api.route('/devices/ping-all', methods=['POST'])
 @jwt_required()
 def ping_all_devices():
     devices = Device.query.all()
-    results = []
+    
+    # Execute Multi-Threaded Parallel ICMP Probing
+    probed_results = execute_ping_parallel(devices, max_workers=15)
 
+    results = []
     online_count = 0
     offline_count = 0
     maintenance_count = 0
 
-    for device in devices:
-        status, latency = execute_ping(device.ip_address, current_status=device.status)
+    now = get_utc_now()
+    for device, status, latency in probed_results:
         device.status = status
         device.latency = latency
-        device.last_checked = datetime.utcnow()
+        device.last_checked = now
 
         ping_log = PingHistory(
             device_id=device.id,
             latency=latency,
             status=status,
-            timestamp=datetime.utcnow()
+            timestamp=now
         )
         db.session.add(ping_log)
 
@@ -554,14 +560,14 @@ def ping_all_devices():
         else:
             offline_count += 1
 
-        results.append(device.to_dict())
+        results.append(device.to_dict(include_history=False))
 
-    log_activity("Bulk Ping", "ALL_DEVICES", f"Scanned all assets: {online_count} Online, {offline_count} Offline, {maintenance_count} Maintenance.")
-    create_notification('Network Bulk Ping Scan', f'Bulk scan finished: {online_count} Online, {offline_count} Offline, {maintenance_count} Maintenance.', 'info')
+    log_activity("Bulk Ping", "ALL_DEVICES", f"Scanned all assets in parallel: {online_count} Online, {offline_count} Offline, {maintenance_count} Maintenance.")
+    create_notification('Network Parallel Bulk Ping Scan', f'Parallel scan finished: {online_count} Online, {offline_count} Offline, {maintenance_count} Maintenance.', 'info')
     db.session.commit()
 
     return jsonify({
-        'message': f'Bulk scan complete: {online_count} Online, {offline_count} Offline, {maintenance_count} Maintenance.',
+        'message': f'Parallel bulk scan complete: {online_count} Online, {offline_count} Offline, {maintenance_count} Maintenance.',
         'devices': results
     }), 200
 

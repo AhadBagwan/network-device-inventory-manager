@@ -1,6 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import db
+
+def get_utc_now():
+    return datetime.now(timezone.utc)
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -9,7 +12,7 @@ class User(db.Model):
     full_name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
 
     def set_password(self, password: str):
         """Generates secure password hash using Werkzeug."""
@@ -49,19 +52,20 @@ class Device(db.Model):
     latency = db.Column(db.Float, nullable=True)          # in milliseconds
     last_checked = db.Column(db.DateTime, nullable=True)
     notes = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
+    updated_at = db.Column(db.DateTime, default=get_utc_now, onupdate=get_utc_now)
 
     # Relationship to ping history RTT logs
     ping_history = db.relationship('PingHistory', backref='device', lazy='dynamic', cascade='all, delete-orphan')
 
-    def to_dict(self):
-        # Format tags list
+    def to_dict(self, include_history=False):
+        """Serializes device model. Passes include_history=True to avoid N+1 query overhead in list views."""
         tag_list = [t.strip() for t in self.tags.split(',') if t.strip()] if self.tags else []
 
-        # Get recent 10 RTT latency history points
-        recent_pings = [p.to_dict() for p in self.ping_history.order_by(PingHistory.timestamp.desc()).limit(10).all()]
-        recent_pings.reverse()
+        recent_pings = []
+        if include_history:
+            recent_pings = [p.to_dict() for p in self.ping_history.order_by(PingHistory.timestamp.desc()).limit(10).all()]
+            recent_pings.reverse()
 
         return {
             'id': self.id,
@@ -95,7 +99,7 @@ class PingHistory(db.Model):
     device_id = db.Column(db.Integer, db.ForeignKey('devices.id'), nullable=False, index=True)
     latency = db.Column(db.Float, nullable=True)
     status = db.Column(db.String(20), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    timestamp = db.Column(db.DateTime, default=get_utc_now, index=True)
 
     def to_dict(self):
         return {
@@ -113,7 +117,7 @@ class Activity(db.Model):
     action = db.Column(db.String(50), nullable=False)
     device_hostname = db.Column(db.String(100), nullable=True)
     details = db.Column(db.String(255), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=get_utc_now)
 
     def to_dict(self):
         return {
@@ -132,7 +136,7 @@ class Notification(db.Model):
     message = db.Column(db.String(255), nullable=False)
     severity = db.Column(db.String(20), default='info')  # info, warning, critical
     read = db.Column(db.Boolean, default=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=get_utc_now)
 
     def to_dict(self):
         return {

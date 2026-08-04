@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import TableSkeleton from './TableSkeleton';
 import { 
   HiLightningBolt, 
   HiPencil, 
@@ -198,14 +199,7 @@ const DeviceTable = ({
           </thead>
           <tbody className="divide-y divide-[var(--border-color)] font-mono">
             {loading ? (
-              <tr>
-                <td colSpan={11} className="py-12 text-center text-[var(--text-muted)] font-sans">
-                  <div className="flex flex-col items-center gap-2">
-                    <HiServer className="w-8 h-8 animate-pulse text-[var(--accent-color)]" />
-                    <span>Loading NOC inventory telemetry...</span>
-                  </div>
-                </td>
-              </tr>
+              <TableSkeleton rows={6} />
             ) : paginatedDevices.length === 0 ? (
               <tr>
                 <td colSpan={11} className="py-12 text-center text-[var(--text-muted)] font-sans">

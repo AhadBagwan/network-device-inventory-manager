@@ -1,60 +1,61 @@
-import socket
 import time
-import ping3
+import socket
+import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from ping3 import ping
 
-ping3.EXCEPTIONS = False
+logger = logging.getLogger(__name__)
 
-def execute_ping(ip_address: str, timeout: int = 2, current_status: str = 'Unknown') -> tuple[str, float | None]:
+def execute_ping(ip_address: str, timeout: float = 1.5, current_status: str = None) -> tuple[str, float]:
     """
-    Pings an IP address using ICMP (ping3) with TCP fallback probing.
-    If current_status is 'Maintenance', preserves status as 'Maintenance' so it is NOT counted as an outage.
-    Returns: (status: 'Online'|'Offline'|'Maintenance', latency_ms: float|None)
+    Executes real ICMP ping using ping3. If ICMP socket permission fails or times out,
+    attempts TCP socket handshake on port 80/443/22 as fallback.
     """
-    # If device is under scheduled maintenance, execute probe for latency metrics, but preserve Maintenance status
     if current_status == 'Maintenance':
-        _, latency = _probe(ip_address, timeout)
-        return 'Maintenance', latency
+        return ('Maintenance', None)
 
-    status, latency = _probe(ip_address, timeout)
-    return status, latency
-
-def _probe(ip_address: str, timeout: int = 2) -> tuple[str, float | None]:
     try:
-        response_ms = ping3.ping(ip_address, timeout=timeout, unit='ms')
-        if response_ms is not False and response_ms is not None:
-            return 'Online', round(float(response_ms), 2)
-        return _tcp_fallback_ping(ip_address, timeout)
-    except PermissionError:
-        return _tcp_fallback_ping(ip_address, timeout)
-    except Exception:
-        return _tcp_fallback_ping(ip_address, timeout)
+        response_time = ping(ip_address, timeout=timeout, unit='ms')
+        if response_time is not None and response_time is not False:
+            return ('Online', round(float(response_time), 2))
+    except Exception as e:
+        logger.debug(f"ICMP ping error for {ip_address}: {e}")
 
-def _tcp_fallback_ping(ip_address: str, timeout: int = 2) -> tuple[str, float | None]:
-    ports_to_test = [80, 443, 22, 161, 8080]
-    
-    for port in ports_to_test:
-        start = time.time()
+    # Fallback to TCP socket connection test (ports 80, 443, 22)
+    for port in [80, 443, 22]:
+        start_time = time.time()
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(timeout)
+        s.settimeout(1.0)
         try:
-            s.connect((ip_address, port))
+            result = s.connect_ex((ip_address, port))
+            if result == 0:
+                elapsed_ms = (time.time() - start_time) * 1000
+                s.close()
+                return ('Online', round(elapsed_ms, 2))
+        except Exception:
+            pass
+        finally:
             s.close()
-            latency = (time.time() - start) * 1000.0
-            return 'Online', round(latency, 2)
-        except ConnectionRefusedError:
-            s.close()
-            latency = (time.time() - start) * 1000.0
-            return 'Online', round(max(1.2, latency), 2)
-        except (socket.timeout, Exception):
-            s.close()
-            continue
 
-    if ip_address.startswith('127.') or ip_address.startswith('192.168.') or ip_address.startswith('10.'):
-        if ip_address.endswith('.250') or ip_address.endswith('.251'):
-            return 'Offline', None
-        
-        hash_seed = sum(ord(c) for c in ip_address)
-        simulated_latency = 1.5 + (hash_seed % 28) + ((hash_seed * 7) % 100) / 100.0
-        return 'Online', round(simulated_latency, 2)
-        
-    return 'Offline', None
+    return ('Offline', None)
+
+def execute_ping_parallel(devices: list, max_workers: int = 15) -> list:
+    """
+    Executes multi-threaded parallel ping probes across all inventory devices concurrently.
+    """
+    results = []
+
+    def probe_device(device):
+        status, latency = execute_ping(device.ip_address, current_status=device.status)
+        return (device, status, latency)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(probe_device, device) for device in devices]
+        for future in as_completed(futures):
+            try:
+                device, status, latency = future.result()
+                results.append((device, status, latency))
+            except Exception as e:
+                logger.error(f"Parallel ping worker exception: {e}")
+
+    return results
