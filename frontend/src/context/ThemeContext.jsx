@@ -18,6 +18,13 @@ export const ThemeProvider = ({ children }) => {
 
   useEffect(() => {
     localStorage.setItem('noc_theme', theme);
+    // Remove all theme classes and add the selected theme class to both root and body
+    THEMES.forEach((t) => {
+      document.documentElement.classList.remove(`theme-${t.id}`);
+      document.body.classList.remove(`theme-${t.id}`);
+    });
+    document.documentElement.classList.add(`theme-${theme}`);
+    document.body.classList.add(`theme-${theme}`);
     document.body.className = `theme-${theme}`;
   }, [theme]);
 

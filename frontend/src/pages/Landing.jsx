@@ -15,8 +15,7 @@ import {
   HiDeviceMobile,
   HiShieldCheck,
   HiArrowRight,
-  HiBookOpen,
-  HiInformationCircle
+  HiBookOpen
 } from 'react-icons/hi';
 import { HiOutlineSignal } from 'react-icons/hi2';
 import { useAuth } from '../context/AuthContext';
@@ -181,7 +180,7 @@ const Landing = () => {
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-mono font-semibold">
               <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-              NOC Telemetry & Asset Management System
+              NOC Telemetry & Asset Management Platform
             </div>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-[var(--text-main)] leading-tight">
@@ -189,7 +188,7 @@ const Landing = () => {
             </h1>
 
             <p className="text-sm sm:text-base text-[var(--text-muted)] leading-relaxed font-mono">
-              Maintain hardware inventory, monitor ICMP telemetry, track scheduled maintenance windows, and audit network events in a Meraki/Datadog inspired internal NOC portal.
+              Maintain hardware inventory, monitor ICMP telemetry, track scheduled maintenance windows, and audit network events in a high-performance internal NOC portal.
             </p>
 
             <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -233,7 +232,7 @@ const Landing = () => {
                   <span className="w-3 h-3 rounded-full bg-rose-500" />
                   <span className="w-3 h-3 rounded-full bg-amber-500" />
                   <span className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-[11px] text-[var(--text-muted)] ml-2">noc-telemetry.local</span>
+                  <span className="text-[11px] text-[var(--text-muted)] ml-2">noc-telemetry.netpulse.io</span>
                 </div>
                 <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                   HEALTH 98.5%
@@ -260,7 +259,7 @@ const Landing = () => {
 
               <div className="text-[11px] text-[var(--text-muted)] pt-2 border-t border-[var(--border-color)] flex justify-between">
                 <span>Total Assets: 15</span>
-                <span>JWT Protected REST API</span>
+                <span>Production Telemetry API</span>
               </div>
             </div>
           </motion.div>
@@ -309,7 +308,7 @@ const Landing = () => {
       <footer className="px-4 lg:px-8 py-8 border-t border-[var(--border-color)] text-xs text-[var(--text-muted)] font-mono">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
-            <span>NetPulse NOC Inventory Manager • Built with React 18, Flask, SQLite & JWT</span>
+            <span>NetPulse NOC Inventory Manager • Production Telemetry System</span>
           </div>
           <div className="flex gap-4">
             <Link to="/guide" className="hover:text-[var(--text-main)]">Guide</Link>

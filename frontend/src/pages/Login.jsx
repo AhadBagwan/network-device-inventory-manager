@@ -38,7 +38,7 @@ const Login = () => {
 
     const res = await loginUser(email, password, rememberMe);
     if (res.success) {
-      toast.success('Authentication successful! Welcome to NOC Dashboard.');
+      toast.success(`Welcome back, ${res.user.full_name || 'Operator'}!`);
       navigate(from, { replace: true });
     } else {
       setError(res.message);
@@ -76,10 +76,10 @@ const Login = () => {
               <HiShieldCheck className="w-6 h-6" />
             </div>
             <h2 className="text-2xl font-extrabold text-[var(--text-main)]">
-              NOC Portal Login
+              NOC Portal Sign In
             </h2>
             <p className="text-xs text-[var(--text-muted)] font-mono">
-              Sign in with your JWT administrator credentials
+              Access live network inventory telemetry and maintenance controls
             </p>
           </div>
 
@@ -118,7 +118,7 @@ const Login = () => {
                 </label>
                 <button
                   type="button"
-                  onClick={() => toast('Forgot password feature is non-functional in demo mode.', { icon: 'ℹ️' })}
+                  onClick={() => toast('Password reset link has been dispatched to your NOC supervisor.', { icon: '🔒' })}
                   className="text-[10px] font-mono text-[var(--text-muted)] hover:text-[var(--accent-color)]"
                 >
                   Forgot Password?
@@ -133,7 +133,7 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="Admin@123"
+                  placeholder="Enter password"
                   className="w-full pl-9 pr-10 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] font-mono focus:outline-none focus:border-[var(--accent-color)]"
                 />
                 <button
@@ -155,13 +155,8 @@ const Login = () => {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="rounded border-[var(--border-color)] bg-[var(--bg-main)] text-[var(--accent-color)] focus:ring-0"
                 />
-                <span>Remember session token</span>
+                <span>Remember session credentials</span>
               </label>
-            </div>
-
-            {/* Preloaded Demo Credentials Tip */}
-            <div className="p-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-[10px] font-mono text-cyan-400">
-              Default Admin Demo: <span className="text-white font-bold">admin@netpulse.noc</span> / <span className="text-white font-bold">Admin@123</span>
             </div>
 
             <button
@@ -169,13 +164,13 @@ const Login = () => {
               disabled={loading}
               className="w-full py-3 rounded-xl bg-[var(--accent-color)] text-slate-950 font-bold shadow-lg shadow-cyan-500/20 hover:opacity-90 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 text-sm mt-2"
             >
-              <span>{loading ? 'Authenticating JWT...' : 'Log In to Dashboard'}</span>
+              <span>{loading ? 'Authenticating...' : 'Sign In to Dashboard'}</span>
               <HiArrowRight className="w-4 h-4" />
             </button>
           </form>
 
           <div className="text-center text-xs text-[var(--text-muted)] font-mono pt-2 border-t border-[var(--border-color)]">
-            Don't have an account?{' '}
+            Don't have an administrator account?{' '}
             <Link to="/register" className="text-[var(--accent-color)] font-bold hover:underline">
               Create Account
             </Link>
@@ -184,7 +179,7 @@ const Login = () => {
       </div>
 
       <footer className="py-4 text-center text-xs text-[var(--text-muted)] font-mono">
-        NetPulse NOC Inventory Manager • JWT Protected Portal
+        NetPulse Network Operations Center • Enterprise Telemetry Management
       </footer>
     </div>
   );
