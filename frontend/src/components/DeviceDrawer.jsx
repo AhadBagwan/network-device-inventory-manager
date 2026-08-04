@@ -7,9 +7,10 @@ import {
   HiServer, 
   HiChip, 
   HiLocationMarker, 
-  HiClock, 
   HiDocumentText, 
-  HiShieldCheck 
+  HiTag,
+  HiShieldCheck,
+  HiClock
 } from 'react-icons/hi';
 
 const getStatusBadge = (status) => {
@@ -48,6 +49,8 @@ const getStatusBadge = (status) => {
 const DeviceDrawer = ({ device, isOpen, onClose, onEdit, onDelete, onPing, pingingId }) => {
   if (!isOpen || !device) return null;
 
+  const recentPings = device.recent_pings || [];
+
   return (
     <>
       <div
@@ -82,18 +85,39 @@ const DeviceDrawer = ({ device, isOpen, onClose, onEdit, onDelete, onPing, pingi
           <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-[11px] font-mono text-[var(--text-muted)] uppercase block">
-                Current Operational Status
+                Operational Status
               </span>
               <div>{getStatusBadge(device.status)}</div>
             </div>
             <div className="text-right">
               <span className="text-[11px] font-mono text-[var(--text-muted)] uppercase block">
-                Response Latency
+                Latest Latency
               </span>
               <span className="text-sm font-bold font-mono text-teal-400">
                 {device.latency !== null ? `${device.latency.toFixed(2)} ms` : 'N/A'}
               </span>
             </div>
+          </div>
+
+          {/* Tags & Group Section */}
+          <div className="space-y-2 font-mono text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase text-[var(--text-muted)]">Device Group:</span>
+              <span className="font-bold text-[var(--text-main)]">{device.device_group || 'Default Zone'}</span>
+            </div>
+            {device.tags && device.tags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                {device.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30"
+                  >
+                    <HiTag className="w-3 h-3" />
+                    <span>#{tag}</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Hardware Specs Grid */}
@@ -120,8 +144,18 @@ const DeviceDrawer = ({ device, isOpen, onClose, onEdit, onDelete, onPing, pingi
               </div>
 
               <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)]">
+                <span className="text-[10px] text-[var(--text-muted)] block">Firmware Version</span>
+                <span className="font-bold text-teal-400 truncate">{device.firmware_version || 'N/A'}</span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)]">
                 <span className="text-[10px] text-[var(--text-muted)] block">Serial Number</span>
                 <span className="font-bold text-[var(--text-main)] truncate">{device.serial_number || 'N/A'}</span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)]">
+                <span className="text-[10px] text-[var(--text-muted)] block">Warranty Expiry</span>
+                <span className="font-bold text-[var(--text-main)]">{device.warranty_expiry || 'N/A'}</span>
               </div>
 
               <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] col-span-2">
@@ -150,11 +184,33 @@ const DeviceDrawer = ({ device, isOpen, onClose, onEdit, onDelete, onPing, pingi
               </div>
 
               <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)]">
-                <span className="text-[10px] text-[var(--text-muted)] block">Rack Unit</span>
+                <span className="text-[10px] text-[var(--text-muted)] block">Rack Unit Position</span>
                 <span className="font-bold text-[var(--text-main)]">{device.rack || 'Unassigned'}</span>
               </div>
             </div>
           </div>
+
+          {/* Recent Latency History Logs */}
+          {recentPings.length > 0 && (
+            <div className="space-y-2 font-mono text-xs">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2 border-b border-[var(--border-color)] pb-2">
+                <HiClock className="w-4 h-4 text-emerald-400" />
+                Recent ICMP Latency History
+              </h3>
+              <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] space-y-1.5">
+                {recentPings.slice(0, 5).map((p, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-[11px]">
+                    <span className="text-[var(--text-muted)]">
+                      {new Date(p.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
+                    <span className="font-bold text-teal-400">
+                      {p.latency ? `${p.latency} ms` : p.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Operational Notes */}
           {device.notes && (

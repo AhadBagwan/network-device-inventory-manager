@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { HiX, HiCheck, HiExclamation } from 'react-icons/hi';
+import { HiX, HiCheck } from 'react-icons/hi';
 
 const DEVICE_TYPES = ['Router', 'Switch', 'Firewall', 'Server', 'Access Point', 'Load Balancer', 'Wireless Controller'];
 const VENDORS = ['Cisco', 'Juniper', 'Fortinet', 'MikroTik', 'Dell', 'HP', 'Aruba', 'Ubiquiti', 'Palo Alto', 'VMware', 'F5 Networks', 'Other'];
-const STATUSES = ['Online', 'Offline', 'Maintenance', 'Unknown'];
+const GROUPS = ['HQ Infrastructure', 'Datacenter Core', 'Branch Perimeter', 'Server Compute', 'Wireless Access', 'Default Zone'];
 
 const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitting = false, apiErrors = {} }) => {
   const isEdit = !!initialData;
@@ -15,10 +15,14 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
     vendor: 'Cisco',
     model: '',
     operating_system: '',
+    firmware_version: '',
     serial_number: '',
     mac_address: '',
     location: '',
     rack: '',
+    warranty_expiry: '',
+    tags: '',
+    device_group: 'Default Zone',
     status: 'Unknown',
     notes: ''
   });
@@ -34,10 +38,14 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
         vendor: initialData.vendor || 'Cisco',
         model: initialData.model || '',
         operating_system: initialData.operating_system || '',
+        firmware_version: initialData.firmware_version || '',
         serial_number: initialData.serial_number || '',
         mac_address: initialData.mac_address || '',
         location: initialData.location || '',
         rack: initialData.rack || '',
+        warranty_expiry: initialData.warranty_expiry || '',
+        tags: Array.isArray(initialData.tags) ? initialData.tags.join(', ') : (initialData.tags || ''),
+        device_group: initialData.device_group || 'Default Zone',
         status: initialData.status || 'Unknown',
         notes: initialData.notes || ''
       });
@@ -49,10 +57,14 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
         vendor: 'Cisco',
         model: '',
         operating_system: '',
+        firmware_version: '',
         serial_number: '',
         mac_address: '',
         location: '',
         rack: '',
+        warranty_expiry: '',
+        tags: '',
+        device_group: 'Default Zone',
         status: 'Unknown',
         notes: ''
       });
@@ -114,14 +126,14 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose} />
 
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-2xl bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="relative w-full max-w-3xl bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
           <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)] bg-[var(--bg-main)]/60">
             <div>
               <h3 className="text-base font-bold text-[var(--text-main)]">
                 {isEdit ? `Edit Device Asset: ${initialData?.hostname}` : 'Add New Network Device Asset'}
               </h3>
               <p className="text-xs text-[var(--text-muted)] font-mono">
-                Enter hardware metadata and status settings
+                Hardware specifications, tags, firmware & rack unit placement
               </p>
             </div>
             <button
@@ -133,7 +145,7 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Hostname */}
               <div>
                 <label className="block font-semibold text-[var(--text-main)] mb-1">
@@ -223,15 +235,12 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
                     errors.model ? 'border-rose-500' : 'border-[var(--border-color)]'
                   } text-[var(--text-main)] focus:outline-none focus:border-[var(--accent-color)]`}
                 />
-                {errors.model && (
-                  <p className="text-rose-400 text-[10px] mt-1 font-mono">{errors.model}</p>
-                )}
               </div>
 
-              {/* Status Setting (including Maintenance) */}
+              {/* Status */}
               <div>
                 <label className="block font-semibold text-[var(--text-main)] mb-1">
-                  Device Status (NOC Mode)
+                  Device Status
                 </label>
                 <select
                   name="status"
@@ -241,7 +250,7 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
                 >
                   <option value="Online">🟢 Online</option>
                   <option value="Offline">🔴 Offline</option>
-                  <option value="Maintenance">🟡 Maintenance (Scheduled Window)</option>
+                  <option value="Maintenance">🟡 Maintenance</option>
                   <option value="Unknown">⚪ Unknown</option>
                 </select>
               </div>
@@ -249,15 +258,30 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
               {/* Operating System */}
               <div>
                 <label className="block font-semibold text-[var(--text-main)] mb-1">
-                  Operating System / Firmware
+                  Operating System
                 </label>
                 <input
                   type="text"
                   name="operating_system"
                   value={formData.operating_system}
                   onChange={handleChange}
-                  placeholder="e.g. Cisco IOS-XE 17.03.04"
+                  placeholder="e.g. Cisco IOS-XE"
                   className="w-full px-3 py-2 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] focus:outline-none focus:border-[var(--accent-color)]"
+                />
+              </div>
+
+              {/* Firmware Version */}
+              <div>
+                <label className="block font-semibold text-[var(--text-main)] mb-1">
+                  Firmware Version
+                </label>
+                <input
+                  type="text"
+                  name="firmware_version"
+                  value={formData.firmware_version}
+                  onChange={handleChange}
+                  placeholder="e.g. 17.03.04a"
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] text-teal-400 font-mono focus:outline-none focus:border-[var(--accent-color)]"
                 />
               </div>
 
@@ -287,33 +311,84 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
                   value={formData.mac_address}
                   onChange={handleChange}
                   placeholder="e.g. 00:1A:2B:3C:4D:5E"
-                  className={`w-full px-3 py-2 rounded-lg bg-[var(--bg-main)] border ${
-                    errors.mac_address ? 'border-rose-500' : 'border-[var(--border-color)]'
-                  } text-cyan-400 font-mono focus:outline-none focus:border-[var(--accent-color)]`}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] text-cyan-400 font-mono focus:outline-none focus:border-[var(--accent-color)]"
                 />
-                {errors.mac_address && (
-                  <p className="text-rose-400 text-[10px] mt-1 font-mono">{errors.mac_address}</p>
-                )}
               </div>
 
               {/* Location */}
               <div>
                 <label className="block font-semibold text-[var(--text-main)] mb-1">
-                  Location / Facility <span className="text-rose-400">*</span>
+                  Facility Location <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="text"
                   name="location"
                   value={formData.location}
                   onChange={handleChange}
-                  placeholder="e.g. Headquarters / Data Center"
-                  className={`w-full px-3 py-2 rounded-lg bg-[var(--bg-main)] border ${
-                    errors.location ? 'border-rose-500' : 'border-[var(--border-color)]'
-                  } text-[var(--text-main)] focus:outline-none focus:border-[var(--accent-color)]`}
+                  placeholder="e.g. Data Center"
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] focus:outline-none focus:border-[var(--accent-color)]"
                 />
-                {errors.location && (
-                  <p className="text-rose-400 text-[10px] mt-1 font-mono">{errors.location}</p>
-                )}
+              </div>
+
+              {/* Rack Unit Position */}
+              <div>
+                <label className="block font-semibold text-[var(--text-main)] mb-1">
+                  Rack Unit Position
+                </label>
+                <input
+                  type="text"
+                  name="rack"
+                  value={formData.rack}
+                  onChange={handleChange}
+                  placeholder="e.g. Rack-DC01 (U12)"
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] font-mono focus:outline-none focus:border-[var(--accent-color)]"
+                />
+              </div>
+
+              {/* Warranty Expiry Date */}
+              <div>
+                <label className="block font-semibold text-[var(--text-main)] mb-1">
+                  Warranty Expiry Date
+                </label>
+                <input
+                  type="date"
+                  name="warranty_expiry"
+                  value={formData.warranty_expiry}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] font-mono focus:outline-none focus:border-[var(--accent-color)]"
+                />
+              </div>
+
+              {/* Device Group */}
+              <div>
+                <label className="block font-semibold text-[var(--text-main)] mb-1">
+                  Device Group / Zone
+                </label>
+                <select
+                  name="device_group"
+                  value={formData.device_group}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] focus:outline-none focus:border-[var(--accent-color)] font-sans"
+                >
+                  {GROUPS.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tags (Comma Separated) */}
+              <div>
+                <label className="block font-semibold text-[var(--text-main)] mb-1">
+                  Device Tags (Comma Separated)
+                </label>
+                <input
+                  type="text"
+                  name="tags"
+                  value={formData.tags}
+                  onChange={handleChange}
+                  placeholder="e.g. Core, Critical, DMZ"
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] text-cyan-400 font-mono focus:outline-none focus:border-[var(--accent-color)]"
+                />
               </div>
             </div>
 

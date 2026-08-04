@@ -4,14 +4,13 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from database import db
-from models import User, Device, Activity
+from models import User, Device, PingHistory, Activity, Notification
 from services.ping_service import execute_ping
 from services.csv_service import generate_inventory_csv
 
 api = Blueprint('api', __name__)
 
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-# At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special character
 PASSWORD_REGEX = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_#^()-])[A-Za-z\d@$!%*?&_#^()-]{8,}$')
 MAC_REGEX = re.compile(r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$|^([0-9A-Fa-f]{4}\.){2}([0-9A-Fa-f]{4})$')
 
@@ -25,6 +24,16 @@ def log_activity(action: str, hostname: str, details: str):
     )
     db.session.add(activity)
 
+def create_notification(title: str, message: str, severity: str = 'info'):
+    """Helper to create NOC system alert notifications."""
+    notif = Notification(
+        title=title,
+        message=message,
+        severity=severity,
+        timestamp=datetime.utcnow()
+    )
+    db.session.add(notif)
+
 # ==========================================
 # PUBLIC & INDEX ROUTES
 # ==========================================
@@ -34,7 +43,7 @@ def api_index():
     return jsonify({
         'name': 'NetPulse NOC Telemetry Manager API',
         'status': 'Online',
-        'version': '2.0.0',
+        'version': '2.2.0',
         'auth_stack': 'Flask-JWT-Extended',
         'endpoints': {
             'register': 'POST /api/register',
@@ -44,6 +53,7 @@ def api_index():
             'devices': 'GET/POST /api/devices (Protected)',
             'statistics': 'GET /api/statistics (Protected)',
             'activities': 'GET /api/activities (Protected)',
+            'notifications': 'GET /api/notifications (Protected)',
             'export_csv': 'GET /api/devices/export (Protected)'
         }
     }), 200
@@ -54,7 +64,6 @@ def api_index():
 
 @api.route('/register', methods=['POST'])
 def register():
-    """Registers a new NOC administrator user."""
     data = request.get_json() or {}
     full_name = data.get('full_name', '').strip()
     email = data.get('email', '').strip().lower()
@@ -78,19 +87,17 @@ def register():
     elif len(password) < 8:
         errors['password'] = 'Password must be at least 8 characters long.'
     elif not PASSWORD_REGEX.match(password):
-        errors['password'] = 'Password must include at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&).'
+        errors['password'] = 'Password must include uppercase, lowercase, number, and special character.'
 
     if errors:
         return jsonify({'errors': errors}), 400
 
-    user = User(
-        full_name=full_name,
-        email=email
-    )
+    user = User(full_name=full_name, email=email)
     user.set_password(password)
 
     db.session.add(user)
-    log_activity('Register', email, f'Registered new administrator account for {full_name}.')
+    log_activity('Register', email, f'Registered administrator account for {full_name}.')
+    create_notification('New Operator Registered', f'Operator {full_name} ({email}) joined NOC team.', 'info')
     db.session.commit()
 
     return jsonify({
@@ -100,7 +107,6 @@ def register():
 
 @api.route('/login', methods=['POST'])
 def login():
-    """Authenticates user and returns JWT access token."""
     data = request.get_json() or {}
     email = data.get('email', '').strip().lower()
     password = data.get('password', '')
@@ -112,9 +118,8 @@ def login():
     if not user or not user.check_password(password):
         return jsonify({'message': 'Invalid email address or password.'}), 401
 
-    # Create JWT access token
     access_token = create_access_token(identity=str(user.id))
-    log_activity('Login', user.email, f'User {user.full_name} logged into NOC dashboard.')
+    log_activity('Login', user.email, f'User {user.full_name} authenticated.')
     db.session.commit()
 
     return jsonify({
@@ -126,7 +131,6 @@ def login():
 @api.route('/profile', methods=['GET'])
 @jwt_required()
 def profile():
-    """Returns profile of currently authenticated user."""
     current_user_id = get_jwt_identity()
     user = User.query.get(int(current_user_id))
     if not user:
@@ -136,16 +140,15 @@ def profile():
 @api.route('/logout', methods=['POST'])
 @jwt_required()
 def logout():
-    """Logs out user session."""
     current_user_id = get_jwt_identity()
     user = User.query.get(int(current_user_id))
     email = user.email if user else 'User'
-    log_activity('Logout', email, 'User logged out of NOC portal.')
+    log_activity('Logout', email, 'User logged out.')
     db.session.commit()
     return jsonify({'message': 'Logged out successfully.'}), 200
 
 # ==========================================
-# PROTECTED DEVICE & INVENTORY ROUTES
+# DEVICE INVENTORY & TELEMETRY ROUTES
 # ==========================================
 
 def validate_device_payload(data, is_update=False, current_id=None):
@@ -158,7 +161,6 @@ def validate_device_payload(data, is_update=False, current_id=None):
     model = data.get('model', '').strip()
     location = data.get('location', '').strip()
     mac_address = data.get('mac_address', '').strip()
-    status = data.get('status', 'Unknown').strip()
 
     if not hostname:
         errors['hostname'] = 'Hostname is required.'
@@ -180,22 +182,19 @@ def validate_device_payload(data, is_update=False, current_id=None):
             if query.first():
                 errors['ip_address'] = f'Device with IP address "{ip_address}" already exists.'
         except ValueError:
-            errors['ip_address'] = 'Invalid IPv4 address format (e.g. 192.168.1.1).'
+            errors['ip_address'] = 'Invalid IPv4 address format.'
 
     if not device_type:
         errors['device_type'] = 'Device type is required.'
-
     if not vendor:
         errors['vendor'] = 'Vendor is required.'
-
     if not model:
         errors['model'] = 'Model is required.'
-
     if not location:
         errors['location'] = 'Location is required.'
 
     if mac_address and not MAC_REGEX.match(mac_address):
-        errors['mac_address'] = 'Invalid MAC format (e.g. 00:1A:2B:3C:4D:5E or 001A.2B3C.4D5E).'
+        errors['mac_address'] = 'Invalid MAC format (e.g. 00:1A:2B:3C:4D:5E).'
 
     return errors
 
@@ -207,6 +206,8 @@ def get_devices():
     status_filter = request.args.get('status', '').strip()
     type_filter = request.args.get('type', '').strip()
     location_filter = request.args.get('location', '').strip()
+    tag_filter = request.args.get('tag', '').strip()
+    group_filter = request.args.get('group', '').strip()
     sort_by = request.args.get('sort_by', 'hostname').strip()
     sort_order = request.args.get('sort_order', 'asc').strip()
 
@@ -220,7 +221,9 @@ def get_devices():
             (Device.vendor.ilike(search_pattern)) |
             (Device.location.ilike(search_pattern)) |
             (Device.model.ilike(search_pattern)) |
-            (Device.operating_system.ilike(search_pattern))
+            (Device.operating_system.ilike(search_pattern)) |
+            (Device.tags.ilike(search_pattern)) |
+            (Device.device_group.ilike(search_pattern))
         )
 
     if vendor_filter:
@@ -231,6 +234,10 @@ def get_devices():
         query = query.filter(Device.device_type == type_filter)
     if location_filter:
         query = query.filter(Device.location == location_filter)
+    if tag_filter:
+        query = query.filter(Device.tags.ilike(f"%{tag_filter}%"))
+    if group_filter:
+        query = query.filter(Device.device_group == group_filter)
 
     sort_attr = getattr(Device, sort_by, None)
     if sort_attr is None:
@@ -258,6 +265,11 @@ def add_device():
     if errors:
         return jsonify({'errors': errors}), 400
 
+    # Format tags
+    tags_val = data.get('tags', '')
+    if isinstance(tags_val, list):
+        tags_val = ', '.join(tags_val)
+
     device = Device(
         hostname=data['hostname'].strip(),
         ip_address=data['ip_address'].strip(),
@@ -265,16 +277,21 @@ def add_device():
         vendor=data['vendor'].strip(),
         model=data['model'].strip(),
         operating_system=data.get('operating_system', '').strip(),
+        firmware_version=data.get('firmware_version', '').strip(),
         serial_number=data.get('serial_number', '').strip(),
         mac_address=data.get('mac_address', '').strip().upper(),
         location=data['location'].strip(),
         rack=data.get('rack', '').strip(),
+        warranty_expiry=data.get('warranty_expiry', '').strip(),
+        tags=tags_val.strip(),
+        device_group=data.get('device_group', 'Default Zone').strip(),
         status=data.get('status', 'Unknown').strip(),
         notes=data.get('notes', '').strip()
     )
 
     db.session.add(device)
-    log_activity("Added Device", device.hostname, f"Added new {device.vendor} {device.device_type} ({device.ip_address}) in {device.location}.")
+    log_activity("Added Device", device.hostname, f"Added new {device.vendor} {device.device_type} ({device.ip_address}).")
+    create_notification('Asset Added', f'Added device {device.hostname} ({device.ip_address}).', 'info')
     db.session.commit()
 
     return jsonify(device.to_dict()), 201
@@ -292,23 +309,35 @@ def update_device(device_id):
     old_status = device.status
     new_status = data.get('status', device.status).strip()
 
+    tags_val = data.get('tags', '')
+    if isinstance(tags_val, list):
+        tags_val = ', '.join(tags_val)
+
     device.hostname = data['hostname'].strip()
     device.ip_address = data['ip_address'].strip()
     device.device_type = data['device_type'].strip()
     device.vendor = data['vendor'].strip()
     device.model = data['model'].strip()
     device.operating_system = data.get('operating_system', '').strip()
+    device.firmware_version = data.get('firmware_version', '').strip()
     device.serial_number = data.get('serial_number', '').strip()
     device.mac_address = data.get('mac_address', '').strip().upper()
     device.location = data['location'].strip()
     device.rack = data.get('rack', '').strip()
+    device.warranty_expiry = data.get('warranty_expiry', '').strip()
+    device.tags = tags_val.strip()
+    device.device_group = data.get('device_group', device.device_group).strip()
     device.status = new_status
     device.notes = data.get('notes', '').strip()
 
     if old_status != new_status:
         log_activity("Edited Device", device.hostname, f"Status updated from {old_status} to {new_status}.")
+        if new_status == 'Maintenance':
+            create_notification('Maintenance Window Started', f'Device {device.hostname} entered Maintenance Mode.', 'warning')
+        elif new_status == 'Offline':
+            create_notification('Device Offline Alert', f'Device {device.hostname} ({device.ip_address}) reported Offline.', 'critical')
     else:
-        log_activity("Edited Device", device.hostname, f"Updated configurations for {device.hostname}.")
+        log_activity("Edited Device", device.hostname, f"Updated hardware specs for {device.hostname}.")
 
     db.session.commit()
     return jsonify(device.to_dict()), 200
@@ -321,7 +350,8 @@ def delete_device(device_id):
     ip = device.ip_address
 
     db.session.delete(device)
-    log_activity("Deleted Device", hostname, f"Removed device {hostname} ({ip}) from inventory database.")
+    log_activity("Deleted Device", hostname, f"Removed asset {hostname} ({ip}) from inventory.")
+    create_notification('Asset Removed', f'Removed {hostname} ({ip}) from NOC inventory.', 'warning')
     db.session.commit()
 
     return jsonify({'message': f'Device {hostname} successfully deleted.'}), 200
@@ -338,12 +368,23 @@ def ping_single_device(device_id):
     device.latency = latency
     device.last_checked = datetime.utcnow()
 
-    details = f"Pinged {device.hostname} ({device.ip_address}) -> Status: {status}"
+    # Log RTT Ping History
+    ping_log = PingHistory(
+        device_id=device.id,
+        latency=latency,
+        status=status,
+        timestamp=datetime.utcnow()
+    )
+    db.session.add(ping_log)
+
+    details = f"Pinged {device.hostname} ({device.ip_address}) -> {status}"
     if latency:
-        details += f", Latency: {latency:.2f}ms"
+        details += f" ({latency:.2f}ms)"
 
     if old_status != status and old_status not in ['Unknown', 'Maintenance']:
         log_activity("Status Changed", device.hostname, f"Status changed from {old_status} to {status}.")
+        if status == 'Offline':
+            create_notification('Host Unreachable Alert', f'{device.hostname} ({device.ip_address}) failed ICMP probe.', 'critical')
     else:
         log_activity("Ping Executed", device.hostname, details)
 
@@ -366,6 +407,15 @@ def ping_all_devices():
         device.latency = latency
         device.last_checked = datetime.utcnow()
 
+        # Log Ping History
+        ping_log = PingHistory(
+            device_id=device.id,
+            latency=latency,
+            status=status,
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(ping_log)
+
         if status == 'Online':
             online_count += 1
         elif status == 'Maintenance':
@@ -375,11 +425,12 @@ def ping_all_devices():
 
         results.append(device.to_dict())
 
-    log_activity("Bulk Ping", "ALL_DEVICES", f"Executed network-wide bulk ping. {online_count} Online, {offline_count} Offline, {maintenance_count} Maintenance.")
+    log_activity("Bulk Ping", "ALL_DEVICES", f"Scanned all assets: {online_count} Online, {offline_count} Offline, {maintenance_count} Maintenance.")
+    create_notification('Network Bulk Ping Scan', f'Bulk scan finished: {online_count} Online, {offline_count} Offline, {maintenance_count} Maintenance.', 'info')
     db.session.commit()
 
     return jsonify({
-        'message': f'Bulk ping complete: {online_count} Online, {offline_count} Offline, {maintenance_count} Maintenance.',
+        'message': f'Bulk scan complete: {online_count} Online, {offline_count} Offline, {maintenance_count} Maintenance.',
         'devices': results
     }), 200
 
@@ -387,7 +438,7 @@ def ping_all_devices():
 @jwt_required()
 def export_devices():
     devices = Device.query.order_by(Device.hostname.asc()).all()
-    log_activity("Export Inventory", "NOC_ADMIN", f"Exported {len(devices)} device records to CSV file.")
+    log_activity("Export Inventory", "NOC_ADMIN", f"Exported {len(devices)} device records to CSV.")
     db.session.commit()
     return generate_inventory_csv(devices)
 
@@ -409,11 +460,8 @@ def get_statistics():
     latencies = [d.latency for d in devices if d.latency is not None and d.status == 'Online']
     avg_latency = round(sum(latencies) / len(latencies), 2) if latencies else 0.0
 
-    # Availability excludes maintenance devices from outage penalties!
     active_pool = total - maintenance
     online_percentage = round((online / active_pool * 100), 1) if active_pool > 0 else 100.0
-
-    # Health Score calculation (0 - 100)
     health_score = int(round(online_percentage * 0.8 + (100 - min(avg_latency, 50)) * 0.2))
 
     vendor_counts = {}
@@ -426,6 +474,15 @@ def get_statistics():
         type_counts[d.device_type] = type_counts.get(d.device_type, 0) + 1
     type_breakdown = [{'device_type': k, 'count': v} for k, v in type_counts.items()]
 
+    # Collect tags & groups
+    all_tags = set()
+    for d in devices:
+        if d.tags:
+            for t in d.tags.split(','):
+                if t.strip():
+                    all_tags.add(t.strip())
+
+    all_groups = sorted(list({d.device_group for d in devices if d.device_group}))
     locations = sorted(list({d.location for d in devices if d.location}))
 
     return jsonify({
@@ -443,7 +500,9 @@ def get_statistics():
         'health_score': max(0, min(100, health_score)),
         'vendor_breakdown': vendor_breakdown,
         'type_breakdown': type_breakdown,
-        'locations': locations
+        'locations': locations,
+        'tags': sorted(list(all_tags)),
+        'groups': all_groups
     }), 200
 
 @api.route('/activities', methods=['GET'])
@@ -452,13 +511,26 @@ def get_activities():
     activities = Activity.query.order_by(Activity.timestamp.desc()).limit(20).all()
     return jsonify([a.to_dict() for a in activities]), 200
 
+@api.route('/notifications', methods=['GET'])
+@jwt_required()
+def get_notifications():
+    notifications = Notification.query.order_by(Notification.timestamp.desc()).limit(15).all()
+    return jsonify([n.to_dict() for n in notifications]), 200
+
+@api.route('/notifications/clear', methods=['POST'])
+@jwt_required()
+def clear_notifications():
+    Notification.query.delete()
+    db.session.commit()
+    return jsonify({'message': 'Notifications cleared.'}), 200
+
 @api.route('/activities/clear', methods=['POST'])
 @jwt_required()
 def clear_activities():
     Activity.query.delete()
-    log_activity("Clear Log", "NOC_ADMIN", "Cleared all activity audit trail entries.")
+    log_activity("Clear Log", "NOC_ADMIN", "Cleared all activity audit log entries.")
     db.session.commit()
-    return jsonify({'message': 'Activity timeline cleared successfully.'}), 200
+    return jsonify({'message': 'Activity timeline cleared.'}), 200
 
 @api.route('/reset-inventory', methods=['POST'])
 @jwt_required()
@@ -466,12 +538,15 @@ def reset_inventory():
     from seed import SEED_DEVICES
     Device.query.delete()
     Activity.query.delete()
+    PingHistory.query.delete()
+    Notification.query.delete()
     
     for data in SEED_DEVICES:
         device = Device(**data)
         db.session.add(device)
 
     log_activity("Reset Inventory", "NOC_ADMIN", "Restored default 15 enterprise network devices.")
+    create_notification('System Reset', 'Restored default NOC inventory assets.', 'info')
     db.session.commit()
 
     return jsonify({'message': 'Inventory successfully reset to default 15 enterprise assets.'}), 200

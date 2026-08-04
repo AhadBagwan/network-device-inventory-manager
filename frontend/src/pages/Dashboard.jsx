@@ -11,6 +11,7 @@ import DeleteModal from '../components/DeleteModal';
 import VendorChart from '../components/VendorChart';
 import DeviceChart from '../components/DeviceChart';
 import RecentActivity from '../components/RecentActivity';
+import RecentAlerts from '../components/RecentAlerts';
 import { 
   getDevices, 
   addDevice, 
@@ -21,18 +22,23 @@ import {
   exportDevices, 
   getStatistics, 
   getActivities,
-  clearActivities 
+  clearActivities,
+  getNotifications,
+  clearNotifications 
 } from '../services/api';
 import toast, { Toaster } from 'react-hot-toast';
+import { HiRefresh, HiClock } from 'react-icons/hi';
 
 const Dashboard = () => {
   const [devices, setDevices] = useState([]);
   const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   
   const [loading, setLoading] = useState(true);
   const [isPingingAll, setIsPingingAll] = useState(false);
   const [pingingId, setPingingId] = useState(null);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(0); // 0 = Off
 
   // Filters & Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,6 +46,8 @@ const Dashboard = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
+  const [groupFilter, setGroupFilter] = useState('');
   const [sortBy, setSortBy] = useState('hostname');
   const [sortOrder, setSortOrder] = useState('asc');
 
@@ -55,33 +63,48 @@ const Dashboard = () => {
 
   const fetchTelemetry = useCallback(async () => {
     try {
-      const [devicesData, statsData, activitiesData] = await Promise.all([
+      const [devicesData, statsData, activitiesData, notificationsData] = await Promise.all([
         getDevices({
           search: searchQuery,
           vendor: vendorFilter,
           status: statusFilter,
           type: typeFilter,
           location: locationFilter,
+          tag: tagFilter,
+          group: groupFilter,
           sort_by: sortBy,
           sort_order: sortOrder
         }),
         getStatistics(),
-        getActivities()
+        getActivities(),
+        getNotifications()
       ]);
 
       setDevices(devicesData);
       setStats(statsData);
       setActivities(activitiesData);
+      setNotifications(notificationsData);
     } catch (err) {
       toast.error('Failed to load NOC inventory telemetry.');
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, vendorFilter, statusFilter, typeFilter, locationFilter, sortBy, sortOrder]);
+  }, [searchQuery, vendorFilter, statusFilter, typeFilter, locationFilter, tagFilter, groupFilter, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchTelemetry();
   }, [fetchTelemetry]);
+
+  // Auto Refresh Interval Effect
+  useEffect(() => {
+    if (autoRefreshInterval > 0) {
+      const intervalMs = autoRefreshInterval * 1000;
+      const timer = setInterval(() => {
+        pingAllDevices().then(() => fetchTelemetry());
+      }, intervalMs);
+      return () => clearInterval(timer);
+    }
+  }, [autoRefreshInterval, fetchTelemetry]);
 
   // Handlers
   const handleSort = (field) => {
@@ -99,6 +122,8 @@ const Dashboard = () => {
     setStatusFilter('');
     setTypeFilter('');
     setLocationFilter('');
+    setTagFilter('');
+    setGroupFilter('');
     setSortBy('hostname');
     setSortOrder('asc');
   };
@@ -204,6 +229,16 @@ const Dashboard = () => {
     }
   };
 
+  const handleClearNotifications = async () => {
+    try {
+      await clearNotifications();
+      toast.success('NOC alerts cleared.');
+      fetchTelemetry();
+    } catch (err) {
+      toast.error('Failed to clear alerts.');
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg-main)] text-[var(--text-main)] transition-colors">
       <Toaster position="top-right" />
@@ -233,6 +268,41 @@ const Dashboard = () => {
 
         {/* Content View */}
         <main className="flex-1 p-4 lg:p-6 space-y-6 overflow-x-hidden">
+          {/* Header Bar with Auto Scan Controls */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-main)] font-mono">
+                NOC Operations Dashboard
+              </h1>
+              <p className="text-xs text-[var(--text-muted)] font-mono">
+                Live ICMP/TCP Probing, Maintenance Windows & Enterprise Asset Telemetry
+              </p>
+            </div>
+
+            {/* Auto Refresh Select Dropdown */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[var(--text-muted)] font-mono flex items-center gap-1">
+                <HiClock className="w-4 h-4 text-[var(--accent-color)]" />
+                Auto-Scan:
+              </span>
+              <select
+                value={autoRefreshInterval}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setAutoRefreshInterval(val);
+                  if (val > 0) toast.success(`Auto-scan set to every ${val}s.`);
+                  else toast.success('Auto-scan disabled.');
+                }}
+                className="px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-xs text-[var(--text-main)] font-mono focus:outline-none focus:border-[var(--accent-color)] cursor-pointer"
+              >
+                <option value={0}>Disabled</option>
+                <option value={30}>Every 30s</option>
+                <option value={60}>Every 60s</option>
+                <option value={300}>Every 5m</option>
+              </select>
+            </div>
+          </div>
+
           {/* Top Telemetry Cards */}
           <DashboardCards stats={stats} loading={loading} />
 
@@ -248,9 +318,15 @@ const Dashboard = () => {
               onTypeChange={setTypeFilter}
               locationFilter={locationFilter}
               onLocationChange={setLocationFilter}
+              tagFilter={tagFilter}
+              onTagChange={setTagFilter}
+              groupFilter={groupFilter}
+              onGroupChange={setGroupFilter}
               vendors={stats?.vendor_breakdown?.map((v) => v.vendor) || []}
               types={stats?.type_breakdown?.map((t) => t.device_type) || []}
               locations={stats?.locations || []}
+              tags={stats?.tags || []}
+              groups={stats?.groups || []}
               onReset={handleResetFilters}
             />
           </div>
@@ -285,8 +361,11 @@ const Dashboard = () => {
             <DeviceChart data={stats?.type_breakdown} />
           </div>
 
-          {/* Activity Logs Timeline */}
-          <RecentActivity activities={activities} onClearLogs={handleClearLogs} />
+          {/* Notifications & Recent Activity Audit Log Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <RecentAlerts notifications={notifications} onClearNotifications={handleClearNotifications} />
+            <RecentActivity activities={activities} onClearLogs={handleClearLogs} />
+          </div>
         </main>
       </div>
 
