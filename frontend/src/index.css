@@ -2,96 +2,96 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  /* 1. Dark Theme (Default NOC Dark) */
-  :root, .theme-dark {
-    --bg-main: #0b0f19;
-    --bg-card: #151c2c;
-    --bg-sidebar: #0f172a;
-    --bg-hover: #1e293b;
-    --border-color: #243048;
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --accent-color: #38bdf8;
-    --accent-hover: #0284c7;
-    --badge-bg: #1e293b;
-  }
+/* Theme Definitions */
+:root,
+body.theme-dark,
+.theme-dark {
+  --bg-main: #0b0f19;
+  --bg-card: #151c2c;
+  --bg-sidebar: #0f172a;
+  --bg-hover: #1e293b;
+  --border-color: #243048;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent-color: #38bdf8;
+  --accent-hover: #0284c7;
+  --badge-bg: #1e293b;
+}
 
-  /* 2. Cyber Blue Theme */
-  .theme-cyber-blue {
-    --bg-main: #0a1128;
-    --bg-card: #101f42;
-    --bg-sidebar: #070e20;
-    --bg-hover: #1c315e;
-    --border-color: #1e3a70;
-    --text-main: #e0f2fe;
-    --text-muted: #7dd3fc;
-    --accent-color: #00d2ff;
-    --accent-hover: #0099cc;
-    --badge-bg: #1e3a70;
-  }
+body.theme-cyber-blue,
+.theme-cyber-blue {
+  --bg-main: #060d1f;
+  --bg-card: #0e1a38;
+  --bg-sidebar: #040916;
+  --bg-hover: #182d5a;
+  --border-color: #1b3870;
+  --text-main: #e0f2fe;
+  --text-muted: #7dd3fc;
+  --accent-color: #00d2ff;
+  --accent-hover: #0099cc;
+  --badge-bg: #182d5a;
+}
 
-  /* 3. Cyber Green Theme */
-  .theme-cyber-green {
-    --bg-main: #05140b;
-    --bg-card: #0c2417;
-    --bg-sidebar: #030c07;
-    --bg-hover: #143823;
-    --border-color: #1a4d2e;
-    --text-main: #e6f4ea;
-    --text-muted: #86efac;
-    --accent-color: #22c55e;
-    --accent-hover: #15803d;
-    --badge-bg: #143823;
-  }
+body.theme-cyber-green,
+.theme-cyber-green {
+  --bg-main: #031209;
+  --bg-card: #0a2114;
+  --bg-sidebar: #020a05;
+  --bg-hover: #12331f;
+  --border-color: #17472b;
+  --text-main: #e6f4ea;
+  --text-muted: #86efac;
+  --accent-color: #22c55e;
+  --accent-hover: #15803d;
+  --badge-bg: #12331f;
+}
 
-  /* 4. Purple Theme */
-  .theme-purple {
-    --bg-main: #120b24;
-    --bg-card: #1d1238;
-    --bg-sidebar: #0b0717;
-    --bg-hover: #2d1d54;
-    --border-color: #3d2770;
-    --text-main: #faf5ff;
-    --text-muted: #c084fc;
-    --accent-color: #a855f7;
-    --accent-hover: #7e22ce;
-    --badge-bg: #2d1d54;
-  }
+body.theme-purple,
+.theme-purple {
+  --bg-main: #0f091f;
+  --bg-card: #190f33;
+  --bg-sidebar: #090514;
+  --bg-hover: #29184f;
+  --border-color: #38216b;
+  --text-main: #faf5ff;
+  --text-muted: #c084fc;
+  --accent-color: #a855f7;
+  --accent-hover: #7e22ce;
+  --badge-bg: #29184f;
+}
 
-  /* 5. Slate Theme */
-  .theme-slate {
-    --bg-main: #0f172a;
-    --bg-card: #1e293b;
-    --bg-sidebar: #020617;
-    --bg-hover: #334155;
-    --border-color: #475569;
-    --text-main: #f1f5f9;
-    --text-muted: #cbd5e1;
-    --accent-color: #f59e0b;
-    --accent-hover: #d97706;
-    --badge-bg: #334155;
-  }
+body.theme-slate,
+.theme-slate {
+  --bg-main: #0f172a;
+  --bg-card: #1e293b;
+  --bg-sidebar: #020617;
+  --bg-hover: #334155;
+  --border-color: #475569;
+  --text-main: #f1f5f9;
+  --text-muted: #cbd5e1;
+  --accent-color: #f59e0b;
+  --accent-hover: #d97706;
+  --badge-bg: #334155;
+}
 
-  /* 6. Light Theme */
-  .theme-light {
-    --bg-main: #f8fafc;
-    --bg-card: #ffffff;
-    --bg-sidebar: #f1f5f9;
-    --bg-hover: #e2e8f0;
-    --border-color: #cbd5e1;
-    --text-main: #0f172a;
-    --text-muted: #64748b;
-    --accent-color: #0284c7;
-    --accent-hover: #0369a1;
-    --badge-bg: #e2e8f0;
-  }
+body.theme-light,
+.theme-light {
+  --bg-main: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-sidebar: #e2e8f0;
+  --bg-hover: #cbd5e1;
+  --border-color: #cbd5e1;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --accent-color: #0284c7;
+  --accent-hover: #0369a1;
+  --badge-bg: #e2e8f0;
+}
 
-  body {
-    background-color: var(--bg-main);
-    color: var(--text-main);
-    transition: background-color 0.3s ease, color 0.3s ease;
-  }
+body {
+  background-color: var(--bg-main) !important;
+  color: var(--text-main) !important;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 /* Custom scrollbars */
@@ -115,8 +115,7 @@
   border: 1px solid var(--border-color);
   border-radius: 0.75rem;
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(12px);
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .noc-badge {
