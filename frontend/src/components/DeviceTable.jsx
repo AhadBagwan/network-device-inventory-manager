@@ -27,10 +27,17 @@ const getStatusBadge = (status) => {
           Offline
         </span>
       );
-    default:
+    case 'Maintenance':
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+          Maintenance
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/30">
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
           Unknown
         </span>
       );
@@ -58,7 +65,6 @@ const DeviceTable = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Auto-reset page when devices change (e.g., search/filters updated)
   useEffect(() => {
     setCurrentPage(1);
   }, [devices.length, sortBy, sortOrder]);
@@ -80,7 +86,6 @@ const DeviceTable = ({
 
   return (
     <div className="noc-card rounded-xl overflow-hidden flex flex-col justify-between">
-      {/* Table Container with Sticky Header */}
       <div className="overflow-x-auto min-h-[350px]">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
@@ -229,7 +234,6 @@ const DeviceTable = ({
         </table>
       </div>
 
-      {/* Pagination Footer */}
       <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-main)] border-t border-[var(--border-color)] text-xs text-[var(--text-muted)] font-mono">
         <div>
           Showing {devices.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to{' '}

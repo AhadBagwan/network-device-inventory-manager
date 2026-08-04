@@ -3,190 +3,208 @@ import {
   HiX, 
   HiLightningBolt, 
   HiPencil, 
+  HiTrash, 
   HiServer, 
-  HiLocationMarker, 
   HiChip, 
+  HiLocationMarker, 
+  HiClock, 
   HiDocumentText, 
-  HiClock,
-  HiShieldCheck
+  HiShieldCheck 
 } from 'react-icons/hi';
-import { TbRouter } from 'react-icons/tb';
 
-const DeviceDrawer = ({ device, isOpen, onClose, onPing, onEdit, isPinging }) => {
+const getStatusBadge = (status) => {
+  switch (status) {
+    case 'Online':
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          Online
+        </span>
+      );
+    case 'Offline':
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/30">
+          <span className="w-2 h-2 rounded-full bg-rose-400" />
+          Offline
+        </span>
+      );
+    case 'Maintenance':
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
+          Maintenance
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/30">
+          <span className="w-2 h-2 rounded-full bg-slate-400" />
+          Unknown
+        </span>
+      );
+  }
+};
+
+const DeviceDrawer = ({ device, isOpen, onClose, onEdit, onDelete, onPing, pingingId }) => {
   if (!isOpen || !device) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
-      {/* Backdrop */}
+    <>
       <div
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-in fade-in duration-200"
         onClick={onClose}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-[var(--bg-card)] border-l border-[var(--border-color)] shadow-2xl flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300">
-          {/* Header */}
-          <div className="p-6 border-b border-[var(--border-color)] bg-[var(--bg-main)]/50">
-            <div className="flex items-center justify-between mb-4">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-[var(--accent-color)]/20 text-[var(--accent-color)] border border-[var(--accent-color)]/30">
-                {device.device_type}
-              </span>
-              <button
-                onClick={onClose}
-                className="p-1 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-main)]"
-              >
-                <HiX className="w-5 h-5" />
-              </button>
-            </div>
-
+      <aside className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-md bg-[var(--bg-card)] border-l border-[var(--border-color)] p-6 overflow-y-auto flex flex-col justify-between shadow-2xl animate-in slide-in-from-right duration-300">
+        <div className="space-y-6">
+          {/* Top Bar */}
+          <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-4">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--accent-color)]">
-                <TbRouter className="w-7 h-7" />
+              <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                <HiServer className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-[var(--text-main)] font-mono tracking-tight">
+                <h2 className="text-lg font-extrabold text-[var(--text-main)] font-mono">
                   {device.hostname}
                 </h2>
-                <p className="text-xs text-cyan-400 font-mono font-semibold">
-                  {device.ip_address}
-                </p>
+                <p className="text-xs text-cyan-400 font-mono">{device.ip_address}</p>
               </div>
             </div>
-          </div>
-
-          {/* Details Body */}
-          <div className="p-6 space-y-6 flex-1 text-xs">
-            {/* Status & Latency summary card */}
-            <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] font-mono">
-              <div>
-                <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-1">
-                  Status
-                </div>
-                <div className="flex items-center gap-1.5 font-bold">
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      device.status === 'Online'
-                        ? 'bg-emerald-400 animate-pulse'
-                        : device.status === 'Offline'
-                        ? 'bg-rose-400'
-                        : 'bg-amber-400'
-                    }`}
-                  />
-                  <span
-                    className={
-                      device.status === 'Online'
-                        ? 'text-emerald-400'
-                        : device.status === 'Offline'
-                        ? 'text-rose-400'
-                        : 'text-amber-400'
-                    }
-                  >
-                    {device.status}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-1">
-                  Latency
-                </div>
-                <div className="font-bold text-teal-400">
-                  {device.latency !== null ? `${device.latency.toFixed(2)} ms` : 'N/A'}
-                </div>
-              </div>
-            </div>
-
-            {/* Network Hardware Specs */}
-            <div className="space-y-3">
-              <h4 className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2">
-                <HiChip className="w-4 h-4 text-[var(--accent-color)]" />
-                Hardware Metadata
-              </h4>
-
-              <div className="space-y-2 font-mono bg-[var(--bg-main)]/40 p-3 rounded-xl border border-[var(--border-color)]">
-                <div className="flex justify-between border-b border-[var(--border-color)]/50 pb-1.5">
-                  <span className="text-[var(--text-muted)] font-sans">Vendor</span>
-                  <span className="font-semibold text-[var(--text-main)]">{device.vendor}</span>
-                </div>
-                <div className="flex justify-between border-b border-[var(--border-color)]/50 pb-1.5">
-                  <span className="text-[var(--text-muted)] font-sans">Model</span>
-                  <span className="font-semibold text-[var(--text-main)]">{device.model}</span>
-                </div>
-                <div className="flex justify-between border-b border-[var(--border-color)]/50 pb-1.5">
-                  <span className="text-[var(--text-muted)] font-sans">OS / Firmware</span>
-                  <span className="font-semibold text-[var(--text-main)]">
-                    {device.operating_system || 'N/A'}
-                  </span>
-                </div>
-                <div className="flex justify-between border-b border-[var(--border-color)]/50 pb-1.5">
-                  <span className="text-[var(--text-muted)] font-sans">Serial Number</span>
-                  <span className="font-semibold text-amber-400">{device.serial_number || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[var(--text-muted)] font-sans">MAC Address</span>
-                  <span className="font-semibold text-cyan-400">{device.mac_address || 'N/A'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Location & Rack Placement */}
-            <div className="space-y-3">
-              <h4 className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2">
-                <HiLocationMarker className="w-4 h-4 text-[var(--accent-color)]" />
-                Physical Placement
-              </h4>
-
-              <div className="space-y-2 font-mono bg-[var(--bg-main)]/40 p-3 rounded-xl border border-[var(--border-color)]">
-                <div className="flex justify-between border-b border-[var(--border-color)]/50 pb-1.5">
-                  <span className="text-[var(--text-muted)] font-sans">Facility / Location</span>
-                  <span className="font-semibold text-[var(--text-main)]">{device.location}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[var(--text-muted)] font-sans">Rack Unit</span>
-                  <span className="font-semibold text-indigo-400">{device.rack || 'Unassigned'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Notes & Audit Timestamps */}
-            {device.notes && (
-              <div className="space-y-2">
-                <h4 className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2">
-                  <HiDocumentText className="w-4 h-4 text-[var(--accent-color)]" />
-                  Operator Notes
-                </h4>
-                <div className="p-3 rounded-xl bg-[var(--bg-main)]/40 border border-[var(--border-color)] font-mono text-[11px] text-[var(--text-muted)] leading-relaxed">
-                  {device.notes}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Drawer Action Footer */}
-          <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-main)] flex gap-2">
             <button
-              onClick={() => onPing(device.id)}
-              disabled={isPinging}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 font-bold transition-all disabled:opacity-50"
+              onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-main)]"
             >
-              <HiLightningBolt className={`w-4 h-4 ${isPinging ? 'animate-bounce' : ''}`} />
-              <span>{isPinging ? 'Pinging...' : 'Ping Device'}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                onClose();
-                onEdit(device);
-              }}
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] hover:bg-[var(--bg-hover)] font-bold transition-all"
-            >
-              <HiPencil className="w-4 h-4" />
-              <span>Edit</span>
+              <HiX className="w-5 h-5" />
             </button>
           </div>
+
+          {/* Status & Latency Card */}
+          <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-[11px] font-mono text-[var(--text-muted)] uppercase block">
+                Current Operational Status
+              </span>
+              <div>{getStatusBadge(device.status)}</div>
+            </div>
+            <div className="text-right">
+              <span className="text-[11px] font-mono text-[var(--text-muted)] uppercase block">
+                Response Latency
+              </span>
+              <span className="text-sm font-bold font-mono text-teal-400">
+                {device.latency !== null ? `${device.latency.toFixed(2)} ms` : 'N/A'}
+              </span>
+            </div>
+          </div>
+
+          {/* Hardware Specs Grid */}
+          <div className="space-y-3 font-mono text-xs">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2 border-b border-[var(--border-color)] pb-2">
+              <HiChip className="w-4 h-4 text-[var(--accent-color)]" />
+              Hardware Specifications
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)]">
+                <span className="text-[10px] text-[var(--text-muted)] block">Vendor</span>
+                <span className="font-bold text-[var(--text-main)]">{device.vendor}</span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)]">
+                <span className="text-[10px] text-[var(--text-muted)] block">Device Type</span>
+                <span className="font-bold text-[var(--text-main)]">{device.device_type}</span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)]">
+                <span className="text-[10px] text-[var(--text-muted)] block">Model</span>
+                <span className="font-bold text-[var(--text-main)] truncate">{device.model}</span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)]">
+                <span className="text-[10px] text-[var(--text-muted)] block">Serial Number</span>
+                <span className="font-bold text-[var(--text-main)] truncate">{device.serial_number || 'N/A'}</span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] col-span-2">
+                <span className="text-[10px] text-[var(--text-muted)] block">MAC Address</span>
+                <span className="font-bold text-cyan-400">{device.mac_address || 'N/A'}</span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] col-span-2">
+                <span className="text-[10px] text-[var(--text-muted)] block">Operating System</span>
+                <span className="font-bold text-[var(--text-main)]">{device.operating_system || 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Physical Location */}
+          <div className="space-y-3 font-mono text-xs">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2 border-b border-[var(--border-color)] pb-2">
+              <HiLocationMarker className="w-4 h-4 text-[var(--accent-color)]" />
+              Facility & Placement
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)]">
+                <span className="text-[10px] text-[var(--text-muted)] block">Facility Location</span>
+                <span className="font-bold text-[var(--text-main)]">{device.location}</span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)]">
+                <span className="text-[10px] text-[var(--text-muted)] block">Rack Unit</span>
+                <span className="font-bold text-[var(--text-main)]">{device.rack || 'Unassigned'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Operational Notes */}
+          {device.notes && (
+            <div className="space-y-2 font-mono text-xs">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2 border-b border-[var(--border-color)] pb-2">
+                <HiDocumentText className="w-4 h-4 text-[var(--accent-color)]" />
+                Operational Notes
+              </h3>
+              <p className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-muted)] leading-relaxed">
+                {device.notes}
+              </p>
+            </div>
+          )}
         </div>
-      </div>
-    </div>
+
+        {/* Bottom Drawer Actions */}
+        <div className="pt-6 border-t border-[var(--border-color)] flex items-center gap-3">
+          <button
+            onClick={() => onPing(device.id)}
+            disabled={pingingId === device.id}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 text-xs font-bold transition-all disabled:opacity-50"
+          >
+            <HiLightningBolt className={`w-4 h-4 ${pingingId === device.id ? 'animate-bounce' : ''}`} />
+            <span>{pingingId === device.id ? 'Pinging...' : 'Ping Device'}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onClose();
+              onEdit(device);
+            }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 text-xs font-bold transition-all"
+          >
+            <HiPencil className="w-4 h-4" />
+            <span>Edit</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onClose();
+              onDelete(device);
+            }}
+            className="p-2.5 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 text-xs font-bold transition-all"
+            title="Delete Device"
+          >
+            <HiTrash className="w-4 h-4" />
+          </button>
+        </div>
+      </aside>
+    </>
   );
 };
 

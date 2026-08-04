@@ -3,12 +3,12 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 const ThemeContext = createContext();
 
 export const THEMES = [
-  { id: 'dark', name: 'Dark NOC (Default)', color: '#38bdf8', bg: '#0b0f19', type: 'dark' },
-  { id: 'blue', name: 'Professional Blue', color: '#00d2ff', bg: '#0a1128', type: 'dark' },
-  { id: 'cyber', name: 'Cyber Green', color: '#22c55e', bg: '#05140b', type: 'dark' },
-  { id: 'purple', name: 'Deep Purple', color: '#a855f7', bg: '#120b24', type: 'dark' },
-  { id: 'crimson', name: 'Crimson Alert', color: '#f43f5e', bg: '#170509', type: 'dark' },
-  { id: 'solar', name: 'Solar Light', color: '#0284c7', bg: '#f8fafc', type: 'light' },
+  { id: 'dark', name: 'Dark NOC', color: '#38bdf8', bg: '#0b0f19', type: 'dark' },
+  { id: 'cyber-blue', name: 'Cyber Blue', color: '#00d2ff', bg: '#0a1128', type: 'dark' },
+  { id: 'cyber-green', name: 'Cyber Green', color: '#22c55e', bg: '#05140b', type: 'dark' },
+  { id: 'purple', name: 'Purple NOC', color: '#a855f7', bg: '#120b24', type: 'dark' },
+  { id: 'slate', name: 'Slate NOC', color: '#f59e0b', bg: '#0f172a', type: 'dark' },
+  { id: 'light', name: 'Light Mode', color: '#0284c7', bg: '#f8fafc', type: 'light' },
 ];
 
 export const ThemeProvider = ({ children }) => {

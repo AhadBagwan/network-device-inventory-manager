@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from database import db
-from models import Device, Activity
+from models import User, Device, Activity
 
 now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -160,10 +160,10 @@ SEED_DEVICES = [
         "mac_address": "E4:11:5B:99:00:11",
         "location": "Data Center",
         "rack": "Rack-DC02",
-        "status": "Online",
-        "latency": 1.35,
+        "status": "Maintenance",  # Demonstration of Maintenance Mode feature
+        "latency": None,
         "last_checked": now_utc - timedelta(minutes=7),
-        "notes": "Redundant 25G ToR switch for storage SAN."
+        "notes": "Scheduled firmware upgrade window (Q3 Maintenance Window)."
     },
     {
         "hostname": "SRV-DB-01",
@@ -195,7 +195,7 @@ SEED_DEVICES = [
         "status": "Offline",
         "latency": None,
         "last_checked": now_utc - timedelta(hours=1),
-        "notes": "Access switch for East Branch desktops - Maintenance scheduled."
+        "notes": "Access switch for East Branch desktops - Power supply failure."
     },
     {
         "hostname": "AP-BR-01",
@@ -248,25 +248,32 @@ SEED_DEVICES = [
 ]
 
 def seed_database():
-    """Populates database with realistic enterprise network devices if empty."""
-    existing_count = Device.query.count()
-    if existing_count == 0:
+    """Populates database with initial admin user and 15 enterprise network devices."""
+    if User.query.count() == 0:
+        print("Seeding initial default admin user...")
+        admin = User(
+            full_name="Admin User",
+            email="admin@netpulse.noc"
+        )
+        admin.set_password("Admin@123")
+        db.session.add(admin)
+        db.session.commit()
+        print("Default admin created: admin@netpulse.noc / Admin@123")
+
+    if Device.query.count() == 0:
         print("Seeding initial 15 network devices into inventory database...")
         for data in SEED_DEVICES:
             device = Device(**data)
             db.session.add(device)
         
-        # Log initial system activity
         seed_activity = Activity(
             action="System Seed",
             device_hostname="SYSTEM",
-            details="Seeded initial 15 enterprise network devices into inventory."
+            details="Seeded initial 15 enterprise network devices and maintenance mode setup."
         )
         db.session.add(seed_activity)
         db.session.commit()
         print("Database seeding completed successfully.")
-    else:
-        print(f"Database already contains {existing_count} devices. Skipping seed.")
 
 if __name__ == '__main__':
     from app import app

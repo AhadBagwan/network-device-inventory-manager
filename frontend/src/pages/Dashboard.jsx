@@ -1,166 +1,92 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import DashboardCards from '../components/DashboardCards';
-import VendorChart from '../components/VendorChart';
-import DeviceChart from '../components/DeviceChart';
-import RecentActivity from '../components/RecentActivity';
 import SearchBar from '../components/SearchBar';
 import Filters from '../components/Filters';
 import DeviceTable from '../components/DeviceTable';
 import DeviceDrawer from '../components/DeviceDrawer';
 import DeviceModal from '../components/DeviceModal';
 import DeleteModal from '../components/DeleteModal';
-import SettingsModal from '../components/SettingsModal';
+import VendorChart from '../components/VendorChart';
+import DeviceChart from '../components/DeviceChart';
+import RecentActivity from '../components/RecentActivity';
 import { 
   getDevices, 
-  getStatistics, 
-  getActivities, 
   addDevice, 
   updateDevice, 
   deleteDevice, 
   pingDevice, 
   pingAllDevices, 
-  exportDevices,
-  clearActivities,
-  resetInventory
+  exportDevices, 
+  getStatistics, 
+  getActivities,
+  clearActivities 
 } from '../services/api';
+import toast, { Toaster } from 'react-hot-toast';
 
 const Dashboard = () => {
-  // State management
   const [devices, setDevices] = useState([]);
-  const [statistics, setStatistics] = useState(null);
+  const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
+  
   const [loading, setLoading] = useState(true);
+  const [isPingingAll, setIsPingingAll] = useState(false);
+  const [pingingId, setPingingId] = useState(null);
 
-  // Settings State (stored in LocalStorage)
-  const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem('noc_settings');
-    return saved ? JSON.parse(saved) : {
-      nocName: 'Enterprise Operations Center',
-      autoRefresh: 10,
-      pingTimeout: 2,
-      maintenanceMode: false,
-      subnet: '192.168.1.0/24'
-    };
-  });
-
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // Filters & Search
-  const [search, setSearch] = useState('');
-  const [vendor, setVendor] = useState('');
-  const [status, setStatus] = useState('');
-  const [deviceType, setDeviceType] = useState('');
-  const [location, setLocation] = useState('');
-
-  // Sorting
+  // Filters & Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [vendorFilter, setVendorFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
   const [sortBy, setSortBy] = useState('hostname');
   const [sortOrder, setSortOrder] = useState('asc');
 
-  // UI Drawer & Modals state
+  // Modals & Drawer State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [drawerDevice, setDrawerDevice] = useState(null);
+  const [selectedDevice, setSelectedDevice] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
-  const [modalDevice, setModalDevice] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalApiErrors, setModalApiErrors] = useState({});
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiErrors, setApiErrors] = useState({});
 
-  const [deleteTargetDevice, setDeleteTargetDevice] = useState(null);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const [pingingId, setPingingId] = useState(null);
-  const [isPingingAll, setIsPingingAll] = useState(false);
-
-  // Fetch stats & activity
-  const fetchDashboardData = useCallback(async () => {
+  const fetchTelemetry = useCallback(async () => {
     try {
-      const [statsData, actData] = await Promise.all([
+      const [devicesData, statsData, activitiesData] = await Promise.all([
+        getDevices({
+          search: searchQuery,
+          vendor: vendorFilter,
+          status: statusFilter,
+          type: typeFilter,
+          location: locationFilter,
+          sort_by: sortBy,
+          sort_order: sortOrder
+        }),
         getStatistics(),
         getActivities()
       ]);
-      setStatistics(statsData);
-      setActivities(actData);
-    } catch (err) {
-      console.error('Failed to load dashboard metrics:', err);
-    }
-  }, []);
 
-  // Fetch device inventory list
-  const fetchDevices = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = {
-        search,
-        vendor,
-        status,
-        type: deviceType,
-        location,
-        sort_by: sortBy,
-        sort_order: sortOrder
-      };
-      const data = await getDevices(params);
-      setDevices(data);
+      setDevices(devicesData);
+      setStats(statsData);
+      setActivities(activitiesData);
     } catch (err) {
-      toast.error('Failed to fetch network inventory records.');
+      toast.error('Failed to load NOC inventory telemetry.');
     } finally {
       setLoading(false);
     }
-  }, [search, vendor, status, deviceType, location, sortBy, sortOrder]);
+  }, [searchQuery, vendorFilter, statusFilter, typeFilter, locationFilter, sortBy, sortOrder]);
 
   useEffect(() => {
-    fetchDevices();
-  }, [fetchDevices]);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
-
-  // Auto-refresh telemetry interval if enabled in settings
-  useEffect(() => {
-    if (!settings?.autoRefresh || settings.autoRefresh <= 0) return;
-    const interval = setInterval(() => {
-      fetchDevices();
-      fetchDashboardData();
-    }, settings.autoRefresh * 1000);
-    return () => clearInterval(interval);
-  }, [settings.autoRefresh, fetchDevices, fetchDashboardData]);
+    fetchTelemetry();
+  }, [fetchTelemetry]);
 
   // Handlers
-  const handleSaveSettings = (newSettings) => {
-    setSettings(newSettings);
-    localStorage.setItem('noc_settings', JSON.stringify(newSettings));
-    toast.success('NOC preferences updated.');
-  };
-
-  const handleResetInventory = async () => {
-    try {
-      const res = await resetInventory();
-      toast.success(res.message);
-      fetchDevices();
-      fetchDashboardData();
-    } catch (err) {
-      toast.error('Failed to reset inventory.');
-    }
-  };
-
-  const handleClearActivities = async () => {
-    try {
-      const res = await clearActivities();
-      toast.success(res.message);
-      fetchDashboardData();
-    } catch (err) {
-      toast.error('Failed to clear activities.');
-    }
-  };
-
   const handleSort = (field) => {
     if (sortBy === field) {
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy(field);
       setSortOrder('asc');
@@ -168,249 +94,246 @@ const Dashboard = () => {
   };
 
   const handleResetFilters = () => {
-    setSearch('');
-    setVendor('');
-    setStatus('');
-    setDeviceType('');
-    setLocation('');
+    setSearchQuery('');
+    setVendorFilter('');
+    setStatusFilter('');
+    setTypeFilter('');
+    setLocationFilter('');
+    setSortBy('hostname');
+    setSortOrder('asc');
   };
 
-  // Add / Edit submission
-  const handleModalSubmit = async (formData) => {
-    setIsSubmitting(true);
-    setModalApiErrors({});
+  const handlePingSingle = async (deviceId) => {
+    setPingingId(deviceId);
     try {
-      if (modalDevice) {
-        // Edit mode
-        await updateDevice(modalDevice.id, formData);
-        toast.success(`Device asset ${formData.hostname} updated.`);
-      } else {
-        // Add mode
-        await addDevice(formData);
-        toast.success(`Added new device asset ${formData.hostname}.`);
-      }
-      setIsModalOpen(false);
-      setModalDevice(null);
-      fetchDevices();
-      fetchDashboardData();
+      const updated = await pingDevice(deviceId);
+      toast.success(`Ping executed for ${updated.hostname} -> ${updated.status}`);
+      fetchTelemetry();
     } catch (err) {
-      if (err.response && err.response.data && err.response.data.errors) {
-        setModalApiErrors(err.response.data.errors);
-        toast.error('Please resolve form validation issues.');
+      toast.error('Ping probe failed.');
+    } finally {
+      setPingingId(null);
+    }
+  };
+
+  const handlePingAll = async () => {
+    setIsPingingAll(true);
+    try {
+      const res = await pingAllDevices();
+      toast.success(res.message);
+      fetchTelemetry();
+    } catch (err) {
+      toast.error('Bulk ping scan failed.');
+    } finally {
+      setIsPingingAll(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      await exportDevices();
+      toast.success('Inventory CSV exported successfully.');
+    } catch (err) {
+      toast.error('CSV export failed.');
+    }
+  };
+
+  const handleAddSubmit = async (formData) => {
+    setIsSubmitting(true);
+    setApiErrors({});
+    try {
+      const newDev = await addDevice(formData);
+      toast.success(`Added device ${newDev.hostname}`);
+      setIsAddModalOpen(false);
+      fetchTelemetry();
+    } catch (err) {
+      if (err.response?.data?.errors) {
+        setApiErrors(err.response.data.errors);
       } else {
-        toast.error(err.response?.data?.message || 'Error saving device details.');
+        toast.error(err.response?.data?.message || 'Failed to add device.');
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Delete execution
-  const handleDeleteConfirm = async (id) => {
-    setIsDeleting(true);
+  const handleEditSubmit = async (formData) => {
+    if (!selectedDevice) return;
+    setIsSubmitting(true);
+    setApiErrors({});
     try {
-      await deleteDevice(id);
-      toast.success('Device asset removed from inventory.');
-      setIsDeleteOpen(false);
-      setDeleteTargetDevice(null);
-      if (drawerDevice?.id === id) {
-        setIsDrawerOpen(false);
+      const updated = await updateDevice(selectedDevice.id, formData);
+      toast.success(`Updated device ${updated.hostname}`);
+      setIsEditModalOpen(false);
+      setSelectedDevice(null);
+      fetchTelemetry();
+    } catch (err) {
+      if (err.response?.data?.errors) {
+        setApiErrors(err.response.data.errors);
+      } else {
+        toast.error(err.response?.data?.message || 'Failed to update device.');
       }
-      fetchDevices();
-      fetchDashboardData();
-    } catch (err) {
-      toast.error('Failed to delete device asset.');
     } finally {
-      setIsDeleting(false);
+      setIsSubmitting(false);
     }
   };
 
-  // Single Ping execution
-  const handleSinglePing = async (id) => {
-    setPingingId(id);
-    const toastId = toast.loading('Pinging device...');
+  const handleDeleteSubmit = async () => {
+    if (!selectedDevice) return;
+    setIsSubmitting(true);
     try {
-      const updated = await pingDevice(id);
-      toast.success(
-        `Ping Response: ${updated.status} (${updated.latency ? `${updated.latency}ms` : 'No ICMP response'})`,
-        { id: toastId }
-      );
-      
-      setDevices((prev) => prev.map((d) => (d.id === id ? updated : d)));
-      if (drawerDevice?.id === id) {
-        setDrawerDevice(updated);
-      }
-      fetchDashboardData();
+      await deleteDevice(selectedDevice.id);
+      toast.success(`Deleted device ${selectedDevice.hostname}`);
+      setIsDeleteModalOpen(false);
+      setSelectedDevice(null);
+      fetchTelemetry();
     } catch (err) {
-      toast.error('ICMP Ping failed.', { id: toastId });
+      toast.error('Failed to delete device.');
     } finally {
-      setPingingId(null);
+      setIsSubmitting(false);
     }
   };
 
-  // Bulk Ping execution
-  const handlePingAll = async () => {
-    setIsPingingAll(true);
-    const toastId = toast.loading('Executing bulk network ping scan...');
+  const handleClearLogs = async () => {
     try {
-      const res = await pingAllDevices();
-      toast.success(res.message, { id: toastId, duration: 5000 });
-      fetchDevices();
-      fetchDashboardData();
+      await clearActivities();
+      toast.success('Activity audit logs cleared.');
+      fetchTelemetry();
     } catch (err) {
-      toast.error('Bulk network ping scan failed.', { id: toastId });
-    } finally {
-      setIsPingingAll(false);
-    }
-  };
-
-  // CSV Export
-  const handleExportCSV = async () => {
-    try {
-      toast.loading('Generating inventory CSV report...', { duration: 1500 });
-      await exportDevices();
-    } catch (err) {
-      toast.error('Failed to export inventory CSV.');
+      toast.error('Failed to clear logs.');
     }
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg-main)] text-[var(--text-main)] transition-colors">
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: 'var(--bg-card)',
-            color: 'var(--text-main)',
-            border: '1px solid var(--border-color)',
-            fontSize: '12px',
-            fontFamily: 'JetBrains Mono, monospace'
-          }
-        }}
-      />
+      <Toaster position="top-right" />
 
-      {/* Top Navigation */}
+      {/* Navbar */}
       <Navbar
         onPingAll={handlePingAll}
-        onExport={handleExportCSV}
+        onExport={handleExport}
         onAddDevice={() => {
-          setModalDevice(null);
-          setModalApiErrors({});
-          setIsModalOpen(true);
+          setApiErrors({});
+          setIsAddModalOpen(true);
         }}
-        onOpenSettings={() => setIsSettingsOpen(true)}
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         isPingingAll={isPingingAll}
-        settings={settings}
       />
 
+      {/* Main Body */}
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
-        {/* Collapsible Sidebar */}
+        {/* Sidebar */}
         <Sidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
-          selectedType={deviceType}
-          onSelectType={(type) => setDeviceType(type)}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          stats={statistics}
+          selectedType={typeFilter}
+          onSelectType={setTypeFilter}
+          stats={stats}
         />
 
-        {/* Main Telemetry & Inventory Dashboard */}
+        {/* Content View */}
         <main className="flex-1 p-4 lg:p-6 space-y-6 overflow-x-hidden">
-          {/* Top Key Performance Stats */}
-          <DashboardCards stats={statistics} />
+          {/* Top Telemetry Cards */}
+          <DashboardCards stats={stats} loading={loading} />
 
-          {/* Analytics Charts & Activity Log Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <VendorChart data={statistics?.vendor_breakdown} />
-            <DeviceChart data={statistics?.type_breakdown} />
-            <RecentActivity activities={activities} />
-          </div>
-
-          {/* Inventory Controls: Search & Filters Toolbar */}
-          <div className="noc-card p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
-            <SearchBar search={search} setSearch={setSearch} />
+          {/* Search & Filter Controls */}
+          <div className="space-y-3">
+            <SearchBar value={searchQuery} onChange={setSearchQuery} />
             <Filters
-              vendor={vendor}
-              setVendor={setVendor}
-              status={status}
-              setStatus={setStatus}
-              type={deviceType}
-              setType={setDeviceType}
-              location={location}
-              setLocation={setLocation}
-              availableLocations={statistics?.locations}
+              vendorFilter={vendorFilter}
+              onVendorChange={setVendorFilter}
+              statusFilter={statusFilter}
+              onStatusChange={setStatusFilter}
+              typeFilter={typeFilter}
+              onTypeChange={setTypeFilter}
+              locationFilter={locationFilter}
+              onLocationChange={setLocationFilter}
+              vendors={stats?.vendor_breakdown?.map((v) => v.vendor) || []}
+              types={stats?.type_breakdown?.map((t) => t.device_type) || []}
+              locations={stats?.locations || []}
               onReset={handleResetFilters}
             />
           </div>
 
-          {/* Primary Network Inventory Table */}
+          {/* Device Table */}
           <DeviceTable
             devices={devices}
             loading={loading}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSort={handleSort}
-            onViewDrawer={(dev) => {
-              setDrawerDevice(dev);
+            onViewDrawer={(device) => {
+              setSelectedDevice(device);
               setIsDrawerOpen(true);
             }}
-            onEdit={(dev) => {
-              setModalDevice(dev);
-              setModalApiErrors({});
-              setIsModalOpen(true);
+            onEdit={(device) => {
+              setSelectedDevice(device);
+              setApiErrors({});
+              setIsEditModalOpen(true);
             }}
-            onDelete={(dev) => {
-              setDeleteTargetDevice(dev);
-              setIsDeleteOpen(true);
+            onDelete={(device) => {
+              setSelectedDevice(device);
+              setIsDeleteModalOpen(true);
             }}
-            onPing={handleSinglePing}
+            onPing={handlePingSingle}
             pingingId={pingingId}
           />
+
+          {/* Analytics Visualizations Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <VendorChart data={stats?.vendor_breakdown} />
+            <DeviceChart data={stats?.type_breakdown} />
+          </div>
+
+          {/* Activity Logs Timeline */}
+          <RecentActivity activities={activities} onClearLogs={handleClearLogs} />
         </main>
       </div>
 
-      {/* Slide-over Right Drawer */}
+      {/* Drawer */}
       <DeviceDrawer
-        device={drawerDevice}
+        device={selectedDevice}
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        onPing={handleSinglePing}
         onEdit={(dev) => {
-          setModalDevice(dev);
-          setModalApiErrors({});
-          setIsModalOpen(true);
+          setSelectedDevice(dev);
+          setApiErrors({});
+          setIsEditModalOpen(true);
         }}
-        isPinging={pingingId === drawerDevice?.id}
+        onDelete={(dev) => {
+          setSelectedDevice(dev);
+          setIsDeleteModalOpen(true);
+        }}
+        onPing={handlePingSingle}
+        pingingId={pingingId}
       />
 
-      {/* Add / Edit Device Popup Modal */}
+      {/* Add Device Modal */}
       <DeviceModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleModalSubmit}
-        initialData={modalDevice}
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSubmit={handleAddSubmit}
         isSubmitting={isSubmitting}
-        apiErrors={modalApiErrors}
+        apiErrors={apiErrors}
       />
 
-      {/* Delete Device Confirmation Modal */}
+      {/* Edit Device Modal */}
+      <DeviceModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSubmit={handleEditSubmit}
+        initialData={selectedDevice}
+        isSubmitting={isSubmitting}
+        apiErrors={apiErrors}
+      />
+
+      {/* Delete Confirmation Modal */}
       <DeleteModal
-        isOpen={isDeleteOpen}
-        onClose={() => setIsDeleteOpen(false)}
-        onConfirm={handleDeleteConfirm}
-        device={deleteTargetDevice}
-        isDeleting={isDeleting}
-      />
-
-      {/* NOC Settings & Diagnostics Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
-        onSaveSettings={handleSaveSettings}
-        onResetInventory={handleResetInventory}
-        onClearActivities={handleClearActivities}
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteSubmit}
+        deviceHostname={selectedDevice?.hostname}
+        isSubmitting={isSubmitting}
       />
     </div>
   );

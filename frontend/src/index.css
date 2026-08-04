@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  /* 1. Default Dark NOC Theme */
+  /* 1. Dark Theme (Default NOC Dark) */
   :root, .theme-dark {
     --bg-main: #0b0f19;
     --bg-card: #151c2c;
@@ -17,8 +17,8 @@
     --badge-bg: #1e293b;
   }
 
-  /* 2. Professional Blue Theme (Grafana) */
-  .theme-blue {
+  /* 2. Cyber Blue Theme */
+  .theme-cyber-blue {
     --bg-main: #0a1128;
     --bg-card: #101f42;
     --bg-sidebar: #070e20;
@@ -31,8 +31,8 @@
     --badge-bg: #1e3a70;
   }
 
-  /* 3. Cyber Green Theme (Terminal Matrix) */
-  .theme-cyber {
+  /* 3. Cyber Green Theme */
+  .theme-cyber-green {
     --bg-main: #05140b;
     --bg-card: #0c2417;
     --bg-sidebar: #030c07;
@@ -45,7 +45,7 @@
     --badge-bg: #143823;
   }
 
-  /* 4. Deep Purple Theme (Obsidian Synthwave) */
+  /* 4. Purple Theme */
   .theme-purple {
     --bg-main: #120b24;
     --bg-card: #1d1238;
@@ -59,22 +59,22 @@
     --badge-bg: #2d1d54;
   }
 
-  /* 5. Crimson Alert Theme (High Contrast NOC Red) */
-  .theme-crimson {
-    --bg-main: #170509;
-    --bg-card: #280a10;
-    --bg-sidebar: #0f0306;
-    --bg-hover: #3d101a;
-    --border-color: #521623;
-    --text-main: #fff1f2;
-    --text-muted: #fda4af;
-    --accent-color: #f43f5e;
-    --accent-hover: #e11d48;
-    --badge-bg: #3d101a;
+  /* 5. Slate Theme */
+  .theme-slate {
+    --bg-main: #0f172a;
+    --bg-card: #1e293b;
+    --bg-sidebar: #020617;
+    --bg-hover: #334155;
+    --border-color: #475569;
+    --text-main: #f1f5f9;
+    --text-muted: #cbd5e1;
+    --accent-color: #f59e0b;
+    --accent-hover: #d97706;
+    --badge-bg: #334155;
   }
 
-  /* 6. Solar Light Theme (Clean Crisp Light NOC) */
-  .theme-solar {
+  /* 6. Light Theme */
+  .theme-light {
     --bg-main: #f8fafc;
     --bg-card: #ffffff;
     --bg-sidebar: #f1f5f9;
@@ -94,7 +94,7 @@
   }
 }
 
-/* Custom scrollbar for modern NOC dashboard tables & sidebars */
+/* Custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -110,7 +110,6 @@
   background: var(--accent-color);
 }
 
-/* Custom glassmorphism cards */
 .noc-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -124,4 +123,18 @@
   background-color: var(--badge-bg);
   border: 1px solid var(--border-color);
   color: var(--text-main);
+}
+
+/* Cyber glow pulse animation */
+@keyframes cyberGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.4), 0 0 40px rgba(56, 189, 248, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(56, 189, 248, 0.7), 0 0 60px rgba(56, 189, 248, 0.4);
+  }
+}
+
+.cyber-glow {
+  animation: cyberGlow 2.5s infinite ease-in-out;
 }

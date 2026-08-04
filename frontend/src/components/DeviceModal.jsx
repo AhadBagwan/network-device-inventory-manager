@@ -3,6 +3,7 @@ import { HiX, HiCheck, HiExclamation } from 'react-icons/hi';
 
 const DEVICE_TYPES = ['Router', 'Switch', 'Firewall', 'Server', 'Access Point', 'Load Balancer', 'Wireless Controller'];
 const VENDORS = ['Cisco', 'Juniper', 'Fortinet', 'MikroTik', 'Dell', 'HP', 'Aruba', 'Ubiquiti', 'Palo Alto', 'VMware', 'F5 Networks', 'Other'];
+const STATUSES = ['Online', 'Offline', 'Maintenance', 'Unknown'];
 
 const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitting = false, apiErrors = {} }) => {
   const isEdit = !!initialData;
@@ -18,6 +19,7 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
     mac_address: '',
     location: '',
     rack: '',
+    status: 'Unknown',
     notes: ''
   });
 
@@ -36,6 +38,7 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
         mac_address: initialData.mac_address || '',
         location: initialData.location || '',
         rack: initialData.rack || '',
+        status: initialData.status || 'Unknown',
         notes: initialData.notes || ''
       });
     } else {
@@ -50,6 +53,7 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
         mac_address: '',
         location: '',
         rack: '',
+        status: 'Unknown',
         notes: ''
       });
     }
@@ -72,7 +76,7 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
     } else {
       const ipv4Regex = /^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.){3}(25[0-5]|(2[0-4]|1\d|[1-9]|)\d)$/;
       if (!ipv4Regex.test(formData.ip_address.trim())) {
-        newErrors.ip_address = 'Enter a valid IPv4 address (e.g., 192.168.1.1).';
+        newErrors.ip_address = 'Enter a valid IPv4 address (e.g. 192.168.1.1).';
       }
     }
 
@@ -80,9 +84,9 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
     if (!formData.location.trim()) newErrors.location = 'Location is required.';
 
     if (formData.mac_address.trim()) {
-      const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
+      const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$|^([0-9A-Fa-f]{4}\.){2}([0-9A-Fa-f]{4})$/;
       if (!macRegex.test(formData.mac_address.trim())) {
-        newErrors.mac_address = 'Valid MAC format: 00:1A:2B:3C:4D:5E';
+        newErrors.mac_address = 'Valid MAC format: 00:1A:2B:3C:4D:5E or 001A.2B3C.4D5E';
       }
     }
 
@@ -111,14 +115,13 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
 
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="relative w-full max-w-2xl bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-          {/* Header */}
           <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)] bg-[var(--bg-main)]/60">
             <div>
               <h3 className="text-base font-bold text-[var(--text-main)]">
                 {isEdit ? `Edit Device Asset: ${initialData?.hostname}` : 'Add New Network Device Asset'}
               </h3>
               <p className="text-xs text-[var(--text-muted)] font-mono">
-                Enter enterprise telemetry metadata
+                Enter hardware metadata and status settings
               </p>
             </div>
             <button
@@ -129,7 +132,6 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
             </button>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Hostname */}
@@ -226,6 +228,24 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
                 )}
               </div>
 
+              {/* Status Setting (including Maintenance) */}
+              <div>
+                <label className="block font-semibold text-[var(--text-main)] mb-1">
+                  Device Status (NOC Mode)
+                </label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] font-bold focus:outline-none focus:border-[var(--accent-color)] font-sans"
+                >
+                  <option value="Online">🟢 Online</option>
+                  <option value="Offline">🔴 Offline</option>
+                  <option value="Maintenance">🟡 Maintenance (Scheduled Window)</option>
+                  <option value="Unknown">⚪ Unknown</option>
+                </select>
+              </div>
+
               {/* Operating System */}
               <div>
                 <label className="block font-semibold text-[var(--text-main)] mb-1">
@@ -295,21 +315,6 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
                   <p className="text-rose-400 text-[10px] mt-1 font-mono">{errors.location}</p>
                 )}
               </div>
-
-              {/* Rack */}
-              <div>
-                <label className="block font-semibold text-[var(--text-main)] mb-1">
-                  Rack Unit Placement
-                </label>
-                <input
-                  type="text"
-                  name="rack"
-                  value={formData.rack}
-                  onChange={handleChange}
-                  placeholder="e.g. Rack-A01 / U14"
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] font-mono focus:outline-none focus:border-[var(--accent-color)]"
-                />
-              </div>
             </div>
 
             {/* Notes */}
@@ -322,12 +327,11 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, initialData = null, isSubmitti
                 rows={2}
                 value={formData.notes}
                 onChange={handleChange}
-                placeholder="Enter connectivity details, interface info, or maintenance schedules..."
+                placeholder="Enter connectivity details or maintenance window notes..."
                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] focus:outline-none focus:border-[var(--accent-color)] font-mono"
               />
             </div>
 
-            {/* Footer Buttons */}
             <div className="flex justify-end gap-3 pt-4 border-t border-[var(--border-color)]">
               <button
                 type="button"

@@ -1,5 +1,31 @@
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 from database import db
+
+class User(db.Model):
+    __tablename__ = 'users'
+
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def set_password(self, password: str):
+        """Generates secure password hash using Werkzeug."""
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password: str) -> bool:
+        """Verifies password against stored hash."""
+        return check_password_hash(self.password_hash, password)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'full_name': self.full_name,
+            'email': self.email,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
 
 class Device(db.Model):
     __tablename__ = 'devices'
@@ -15,7 +41,7 @@ class Device(db.Model):
     mac_address = db.Column(db.String(50), nullable=True)
     location = db.Column(db.String(100), nullable=False)
     rack = db.Column(db.String(50), nullable=True)
-    status = db.Column(db.String(20), default='Unknown')  # Online, Offline, Unknown
+    status = db.Column(db.String(20), default='Unknown')  # Online, Offline, Maintenance, Unknown
     latency = db.Column(db.Float, nullable=True)          # in milliseconds
     last_checked = db.Column(db.DateTime, nullable=True)
     notes = db.Column(db.Text, nullable=True)
@@ -47,7 +73,7 @@ class Activity(db.Model):
     __tablename__ = 'activities'
 
     id = db.Column(db.Integer, primary_key=True)
-    action = db.Column(db.String(50), nullable=False)     # e.g., Added Device, Ping Executed, Bulk Ping
+    action = db.Column(db.String(50), nullable=False)     # e.g., Login, Logout, Added Device, Maintenance
     device_hostname = db.Column(db.String(100), nullable=True)
     details = db.Column(db.String(255), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)

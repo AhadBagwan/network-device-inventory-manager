@@ -1,6 +1,7 @@
 import os
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager
 from config import Config
 from database import db
 from routes import api
@@ -12,6 +13,17 @@ def create_app():
 
     # Enable CORS for all routes (frontend communication)
     CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+    # Initialize Flask-JWT-Extended
+    jwt = JWTManager(app)
+
+    @jwt.unauthorized_loader
+    def unauthorized_response(callback):
+        return jsonify({'message': 'Missing or invalid Authorization Bearer token.'}), 401
+
+    @jwt.expired_token_loader
+    def expired_token_response(jwt_header, jwt_payload):
+        return jsonify({'message': 'Authorization token has expired. Please log in again.'}), 401
 
     # Explicit CORS header fallback for preflight OPTIONS & error handling
     @app.after_request
@@ -29,10 +41,10 @@ def create_app():
     @app.route('/', methods=['GET'])
     def root_index():
         return jsonify({
-            'name': 'Network Device Inventory Manager API Server',
+            'name': 'NetPulse NOC Telemetry Manager API Server',
             'status': 'Online',
             'api_base': '/api',
-            'documentation': 'Access /api to view full endpoint catalog'
+            'auth': 'JWT Bearer Token Required for Protected Endpoints'
         }), 200
 
     # Global error handlers for JSON responses

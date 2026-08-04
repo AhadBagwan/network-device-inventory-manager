@@ -1,29 +1,42 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  HiChartPie, 
+  HiCollection, 
   HiServer, 
-  HiShieldCheck, 
-  HiWifi, 
-  HiDesktopComputer, 
-  HiCollection,
+  HiChartBar, 
+  HiClock, 
+  HiBookOpen, 
+  HiCog, 
+  HiInformationCircle, 
+  HiLogout, 
   HiX,
-  HiChip,
   HiCheckCircle,
-  HiCog
+  HiShieldCheck
 } from 'react-icons/hi';
-import { TbRouter } from 'react-icons/tb';
+import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const Sidebar = ({ isOpen, onClose, selectedType, onSelectType, stats }) => {
-  const navItems = [
-    { label: 'All Devices', type: '', icon: HiCollection, count: stats?.total_devices || 0 },
-    { label: 'Routers', type: 'Router', icon: TbRouter, count: stats?.routers || 0 },
-    { label: 'Switches', type: 'Switch', icon: HiChip, count: stats?.switches || 0 },
-    { label: 'Firewalls', type: 'Firewall', icon: HiShieldCheck, count: stats?.firewalls || 0 },
-    { label: 'Servers', type: 'Server', icon: HiServer, count: stats?.servers || 0 },
-    { label: 'Access Points', type: 'Access Point', icon: HiWifi, count: 0 },
-    { label: 'Wireless Controllers', type: 'Wireless Controller', icon: HiDesktopComputer, count: 0 },
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logoutUser } = useAuth();
+
+  const navLinks = [
+    { label: 'Dashboard', path: '/dashboard', icon: HiCollection },
+    { label: 'Devices', path: '/dashboard', icon: HiServer },
+    { label: 'Analytics', path: '/analytics', icon: HiChartBar },
+    { label: 'Guide', path: '/guide', icon: HiBookOpen },
+    { label: 'Settings', path: '/settings', icon: HiCog },
+    { label: 'About', path: '/about', icon: HiInformationCircle },
   ];
+
+  const handleLogout = () => {
+    logoutUser();
+    toast.success('Logged out successfully.');
+    navigate('/login');
+  };
+
+  const isActive = (path) => location.pathname === path;
 
   return (
     <>
@@ -40,12 +53,12 @@ const Sidebar = ({ isOpen, onClose, selectedType, onSelectType, stats }) => {
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div>
-          {/* Mobile Sidebar Close Header */}
-          <div className="flex items-center justify-between pb-4 mb-4 border-b border-[var(--border-color)] lg:hidden">
-            <div className="flex items-center gap-2 font-bold text-sm text-[var(--text-main)]">
-              <HiChartPie className="w-5 h-5 text-[var(--accent-color)]" />
-              NOC Telemetry
+        <div className="space-y-6">
+          {/* Header Mobile Close */}
+          <div className="flex items-center justify-between pb-4 border-b border-[var(--border-color)] lg:hidden">
+            <div className="flex items-center gap-2 font-bold text-sm text-[var(--text-main)] font-mono">
+              <HiServer className="w-5 h-5 text-[var(--accent-color)]" />
+              NetPulse NOC Menu
             </div>
             <button
               onClick={onClose}
@@ -55,93 +68,90 @@ const Sidebar = ({ isOpen, onClose, selectedType, onSelectType, stats }) => {
             </button>
           </div>
 
-          <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-3 px-3">
-            Device Categories
+          {/* Navigation Links */}
+          <div className="space-y-1">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2 px-3">
+              NOC Portal Navigation
+            </div>
+            <nav className="space-y-1">
+              {navLinks.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.path);
+                return (
+                  <Link
+                    key={item.label}
+                    to={item.path}
+                    onClick={() => {
+                      if (window.innerWidth < 1024) onClose();
+                    }}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                      active
+                        ? 'bg-[var(--bg-hover)] text-[var(--accent-color)] border border-[var(--border-color)] shadow-sm'
+                        : 'text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-main)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className={`w-4 h-4 ${active ? 'text-[var(--accent-color)]' : ''}`} />
+                      <span>{item.label}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
 
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = selectedType === item.type;
-              return (
-                <button
-                  key={item.label}
-                  onClick={() => {
-                    onSelectType(item.type);
-                    if (window.innerWidth < 1024) onClose();
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-[var(--bg-hover)] text-[var(--accent-color)] border border-[var(--border-color)] shadow-sm'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-main)]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-[var(--accent-color)]' : ''}`} />
-                    <span>{item.label}</span>
-                  </div>
-                  {item.count > 0 && (
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
-                        isActive
-                          ? 'bg-[var(--accent-color)]/20 text-[var(--accent-color)] border border-[var(--accent-color)]/30'
-                          : 'bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border-color)]'
-                      }`}
-                    >
-                      {item.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="pt-4 mt-4 border-t border-[var(--border-color)] space-y-1">
-            <Link
-              to="/admin"
-              onClick={() => {
-                if (window.innerWidth < 1024) onClose();
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all"
-            >
-              <HiShieldCheck className="w-4 h-4" />
-              <span>Admin Portal</span>
-            </Link>
-
-            <button
-              onClick={() => {
-                onOpenSettings();
-                if (window.innerWidth < 1024) onClose();
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-main)] transition-all"
-            >
-              <HiCog className="w-4 h-4 text-[var(--accent-color)]" />
-              <span>NOC Settings</span>
-            </button>
-          </div>
+          {/* Device Type Filters Quick Link (if on Dashboard) */}
+          {onSelectType && (
+            <div className="space-y-1 pt-4 border-t border-[var(--border-color)]">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2 px-3">
+                Quick Category Filters
+              </div>
+              <div className="space-y-1 font-mono text-xs">
+                {[
+                  { label: 'All Devices', type: '' },
+                  { label: 'Routers', type: 'Router' },
+                  { label: 'Switches', type: 'Switch' },
+                  { label: 'Firewalls', type: 'Firewall' },
+                  { label: 'Servers', type: 'Server' }
+                ].map((cat) => (
+                  <button
+                    key={cat.label}
+                    onClick={() => {
+                      onSelectType(cat.type);
+                      if (window.innerWidth < 1024) onClose();
+                    }}
+                    className={`w-full text-left px-3 py-1.5 rounded-lg text-[11px] transition-colors ${
+                      selectedType === cat.type
+                        ? 'text-[var(--accent-color)] font-bold bg-[var(--bg-hover)]'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                    }`}
+                  >
+                    • {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Bottom System Status Widget */}
-        <div className="mt-6 pt-4 border-t border-[var(--border-color)]">
-          <div className="noc-card p-3 bg-[var(--bg-main)] rounded-lg text-xs space-y-2">
-            <div className="flex items-center justify-between font-semibold">
-              <span className="text-[var(--text-muted)]">NOC Health</span>
-              <span className="flex items-center gap-1 text-emerald-400 font-mono text-[11px]">
-                <HiCheckCircle className="w-3.5 h-3.5" />
-                {stats?.online_percentage || 0}%
-              </span>
+        {/* User Account & System Status Bottom Widget */}
+        <div className="space-y-3 pt-4 border-t border-[var(--border-color)]">
+          {/* User Profile Card */}
+          {user && (
+            <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] space-y-1 text-xs">
+              <div className="font-bold text-[var(--text-main)] truncate">{user.full_name}</div>
+              <div className="text-[10px] text-[var(--text-muted)] font-mono truncate">{user.email}</div>
             </div>
-            <div className="w-full bg-[var(--border-color)] rounded-full h-1.5 overflow-hidden">
-              <div
-                className="bg-emerald-400 h-1.5 rounded-full transition-all duration-500"
-                style={{ width: `${stats?.online_percentage || 0}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-[10px] text-[var(--text-muted)] font-mono">
-              <span>Latency: {stats?.avg_latency || 0}ms</span>
-              <span>Total: {stats?.total_devices || 0}</span>
-            </div>
-          </div>
+          )}
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 text-xs font-bold transition-all"
+          >
+            <HiLogout className="w-4 h-4" />
+            <span>Logout Account</span>
+          </button>
         </div>
       </aside>
     </>
