@@ -1,4 +1,6 @@
 import re
+import io
+import pandas as pd
 import ipaddress
 from datetime import datetime
 from flask import Blueprint, request, jsonify
@@ -43,7 +45,7 @@ def api_index():
     return jsonify({
         'name': 'NetPulse NOC Telemetry Manager API',
         'status': 'Online',
-        'version': '2.2.0',
+        'version': '2.3.0',
         'auth_stack': 'Flask-JWT-Extended',
         'endpoints': {
             'register': 'POST /api/register',
@@ -51,6 +53,9 @@ def api_index():
             'profile': 'GET /api/profile (Protected)',
             'logout': 'POST /api/logout (Protected)',
             'devices': 'GET/POST /api/devices (Protected)',
+            'import_csv': 'POST /api/devices/import (Protected)',
+            'bulk_delete': 'POST /api/devices/bulk-delete (Protected)',
+            'bulk_status': 'POST /api/devices/bulk-status (Protected)',
             'statistics': 'GET /api/statistics (Protected)',
             'activities': 'GET /api/activities (Protected)',
             'notifications': 'GET /api/notifications (Protected)',
@@ -265,7 +270,6 @@ def add_device():
     if errors:
         return jsonify({'errors': errors}), 400
 
-    # Format tags
     tags_val = data.get('tags', '')
     if isinstance(tags_val, list):
         tags_val = ', '.join(tags_val)
@@ -356,6 +360,135 @@ def delete_device(device_id):
 
     return jsonify({'message': f'Device {hostname} successfully deleted.'}), 200
 
+# ==========================================
+# BULK ACTIONS & CSV IMPORT ROUTES
+# ==========================================
+
+@api.route('/devices/import', methods=['POST'])
+@jwt_required()
+def import_devices_csv():
+    if 'file' not in request.files:
+        return jsonify({'message': 'No CSV file attached.'}), 400
+
+    file = request.files['file']
+    if not file.filename.endswith('.csv'):
+        return jsonify({'message': 'Invalid file format. Please upload a .csv file.'}), 400
+
+    try:
+        df = pd.read_csv(io.StringIO(file.stream.read().decode('utf-8-sig')))
+    except Exception as e:
+        return jsonify({'message': f'Failed to parse CSV file: {str(e)}'}), 400
+
+    # Normalize column names
+    df.columns = [c.strip().lower().replace(' ', '_') for c in df.columns]
+
+    imported_count = 0
+    skipped_count = 0
+    errors = []
+
+    for index, row in df.iterrows():
+        hostname = str(row.get('hostname', '')).strip()
+        ip_address = str(row.get('ip_address', '')).strip()
+        device_type = str(row.get('device_type', 'Router')).strip() or 'Router'
+        vendor = str(row.get('vendor', 'Other')).strip() or 'Other'
+        model = str(row.get('model', 'Generic Model')).strip() or 'Generic Model'
+        location = str(row.get('location', 'Headquarters')).strip() or 'Headquarters'
+
+        if not hostname or not ip_address:
+            skipped_count += 1
+            errors.append(f"Row {index+2}: Hostname and IP address required.")
+            continue
+
+        # Check duplicate IPv4 or Hostname
+        if Device.query.filter((Device.hostname.ilike(hostname)) | (Device.ip_address == ip_address)).first():
+            skipped_count += 1
+            errors.append(f"Row {index+2}: Hostname '{hostname}' or IP '{ip_address}' already exists.")
+            continue
+
+        device = Device(
+            hostname=hostname,
+            ip_address=ip_address,
+            device_type=device_type,
+            vendor=vendor,
+            model=model,
+            operating_system=str(row.get('operating_system', '')).strip() if pd.notna(row.get('operating_system')) else '',
+            firmware_version=str(row.get('firmware_version', '')).strip() if pd.notna(row.get('firmware_version')) else '',
+            serial_number=str(row.get('serial_number', '')).strip() if pd.notna(row.get('serial_number')) else '',
+            mac_address=str(row.get('mac_address', '')).strip().upper() if pd.notna(row.get('mac_address')) else '',
+            location=location,
+            rack=str(row.get('rack', '')).strip() if pd.notna(row.get('rack')) else '',
+            warranty_expiry=str(row.get('warranty_expiry', '')).strip() if pd.notna(row.get('warranty_expiry')) else '',
+            tags=str(row.get('tags', '')).strip() if pd.notna(row.get('tags')) else '',
+            device_group=str(row.get('device_group', 'Default Zone')).strip() if pd.notna(row.get('device_group')) else 'Default Zone',
+            status=str(row.get('status', 'Unknown')).strip() if pd.notna(row.get('status')) else 'Unknown',
+            notes=str(row.get('notes', '')).strip() if pd.notna(row.get('notes')) else ''
+        )
+
+        db.session.add(device)
+        imported_count += 1
+
+    if imported_count > 0:
+        log_activity("CSV Import", "NOC_ADMIN", f"Imported {imported_count} devices from CSV. {skipped_count} skipped.")
+        create_notification('Batch CSV Import', f'Batch imported {imported_count} new network devices.', 'info')
+        db.session.commit()
+
+    return jsonify({
+        'message': f'CSV import completed: {imported_count} imported, {skipped_count} skipped.',
+        'imported_count': imported_count,
+        'skipped_count': skipped_count,
+        'errors': errors
+    }), 200
+
+@api.route('/devices/bulk-delete', methods=['POST'])
+@jwt_required()
+def bulk_delete_devices():
+    data = request.get_json() or {}
+    device_ids = data.get('device_ids', [])
+
+    if not device_ids or not isinstance(device_ids, list):
+        return jsonify({'message': 'Select at least one device to delete.'}), 400
+
+    devices = Device.query.filter(Device.id.in_(device_ids)).all()
+    count = len(devices)
+
+    for d in devices:
+        db.session.delete(d)
+
+    log_activity("Bulk Delete", "NOC_ADMIN", f"Bulk deleted {count} devices from inventory.")
+    create_notification('Bulk Delete Alert', f'Bulk removed {count} devices from NOC inventory.', 'warning')
+    db.session.commit()
+
+    return jsonify({'message': f'Successfully deleted {count} selected devices.'}), 200
+
+@api.route('/devices/bulk-status', methods=['POST'])
+@jwt_required()
+def bulk_update_status():
+    data = request.get_json() or {}
+    device_ids = data.get('device_ids', [])
+    new_status = data.get('status', '').strip()
+
+    if not device_ids or not isinstance(device_ids, list):
+        return jsonify({'message': 'Select at least one device.'}), 400
+
+    if new_status not in ['Online', 'Offline', 'Maintenance', 'Unknown']:
+        return jsonify({'message': 'Invalid status option.'}), 400
+
+    devices = Device.query.filter(Device.id.in_(device_ids)).all()
+    count = len(devices)
+
+    for d in devices:
+        d.status = new_status
+
+    log_activity("Bulk Status Change", "NOC_ADMIN", f"Bulk updated status of {count} devices to {new_status}.")
+    create_notification('Bulk Status Update', f'Updated {count} devices to {new_status} status.', 'info')
+    db.session.commit()
+
+    return jsonify({'message': f'Successfully updated status of {count} devices to {new_status}.'}), 200
+
+# ==========================================
+# PROBING & TELEMETRY ROUTES
+# ==========================================
+
 @api.route('/devices/ping/<int:device_id>', methods=['POST'])
 @jwt_required()
 def ping_single_device(device_id):
@@ -368,7 +501,6 @@ def ping_single_device(device_id):
     device.latency = latency
     device.last_checked = datetime.utcnow()
 
-    # Log RTT Ping History
     ping_log = PingHistory(
         device_id=device.id,
         latency=latency,
@@ -407,7 +539,6 @@ def ping_all_devices():
         device.latency = latency
         device.last_checked = datetime.utcnow()
 
-        # Log Ping History
         ping_log = PingHistory(
             device_id=device.id,
             latency=latency,
@@ -474,7 +605,6 @@ def get_statistics():
         type_counts[d.device_type] = type_counts.get(d.device_type, 0) + 1
     type_breakdown = [{'device_type': k, 'count': v} for k, v in type_counts.items()]
 
-    # Collect tags & groups
     all_tags = set()
     for d in devices:
         if d.tags:

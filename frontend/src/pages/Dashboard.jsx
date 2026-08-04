@@ -8,6 +8,7 @@ import DeviceTable from '../components/DeviceTable';
 import DeviceDrawer from '../components/DeviceDrawer';
 import DeviceModal from '../components/DeviceModal';
 import DeleteModal from '../components/DeleteModal';
+import ImportModal from '../components/ImportModal';
 import VendorChart from '../components/VendorChart';
 import DeviceChart from '../components/DeviceChart';
 import RecentActivity from '../components/RecentActivity';
@@ -24,10 +25,12 @@ import {
   getActivities,
   clearActivities,
   getNotifications,
-  clearNotifications 
+  clearNotifications,
+  bulkDeleteDevices,
+  bulkUpdateDeviceStatus 
 } from '../services/api';
 import toast, { Toaster } from 'react-hot-toast';
-import { HiRefresh, HiClock } from 'react-icons/hi';
+import { HiClock } from 'react-icons/hi';
 
 const Dashboard = () => {
   const [devices, setDevices] = useState([]);
@@ -38,7 +41,10 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isPingingAll, setIsPingingAll] = useState(false);
   const [pingingId, setPingingId] = useState(null);
-  const [autoRefreshInterval, setAutoRefreshInterval] = useState(0); // 0 = Off
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(0);
+
+  // Checkboxes Multi-Select State
+  const [selectedIds, setSelectedIds] = useState([]);
 
   // Filters & Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,6 +64,7 @@ const Dashboard = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiErrors, setApiErrors] = useState({});
 
@@ -106,7 +113,59 @@ const Dashboard = () => {
     }
   }, [autoRefreshInterval, fetchTelemetry]);
 
-  // Handlers
+  // Selection Handlers
+  const handleToggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = (paginatedIds) => {
+    if (paginatedIds.length === 0) {
+      setSelectedIds([]);
+      return;
+    }
+    const allSelected = paginatedIds.every((id) => selectedIds.includes(id));
+    if (allSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !paginatedIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...paginatedIds])));
+    }
+  };
+
+  // Bulk Actions
+  const handleBulkPing = async (ids) => {
+    toast.success(`Executing ping on ${ids.length} selected assets...`);
+    for (const id of ids) {
+      await pingDevice(id);
+    }
+    fetchTelemetry();
+  };
+
+  const handleBulkStatus = async (ids, status) => {
+    try {
+      const res = await bulkUpdateDeviceStatus(ids, status);
+      toast.success(res.message);
+      setSelectedIds([]);
+      fetchTelemetry();
+    } catch (err) {
+      toast.error('Bulk status update failed.');
+    }
+  };
+
+  const handleBulkDelete = async (ids) => {
+    if (!window.confirm(`Are you sure you want to permanently delete ${ids.length} selected assets?`)) return;
+    try {
+      const res = await bulkDeleteDevices(ids);
+      toast.success(res.message);
+      setSelectedIds([]);
+      fetchTelemetry();
+    } catch (err) {
+      toast.error('Bulk deletion failed.');
+    }
+  };
+
+  // Sorting & Filtering Handlers
   const handleSort = (field) => {
     if (sortBy === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -247,6 +306,7 @@ const Dashboard = () => {
       <Navbar
         onPingAll={handlePingAll}
         onExport={handleExport}
+        onImport={() => setIsImportModalOpen(true)}
         onAddDevice={() => {
           setApiErrors({});
           setIsAddModalOpen(true);
@@ -268,7 +328,7 @@ const Dashboard = () => {
 
         {/* Content View */}
         <main className="flex-1 p-4 lg:p-6 space-y-6 overflow-x-hidden">
-          {/* Header Bar with Auto Scan Controls */}
+          {/* Header Bar */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-main)] font-mono">
@@ -353,6 +413,12 @@ const Dashboard = () => {
             }}
             onPing={handlePingSingle}
             pingingId={pingingId}
+            selectedIds={selectedIds}
+            onToggleSelect={handleToggleSelect}
+            onToggleSelectAll={handleToggleSelectAll}
+            onBulkStatus={handleBulkStatus}
+            onBulkDelete={handleBulkDelete}
+            onBulkPing={handleBulkPing}
           />
 
           {/* Analytics Visualizations Row */}
@@ -404,6 +470,16 @@ const Dashboard = () => {
         initialData={selectedDevice}
         isSubmitting={isSubmitting}
         apiErrors={apiErrors}
+      />
+
+      {/* Import CSV Modal */}
+      <ImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => {
+          setIsImportModalOpen(false);
+          fetchTelemetry();
+        }}
       />
 
       {/* Delete Confirmation Modal */}

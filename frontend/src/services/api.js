@@ -7,7 +7,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 15000,
 });
 
 api.interceptors.request.use(
@@ -57,6 +57,25 @@ export const updateDevice = async (id, deviceData) => {
 
 export const deleteDevice = async (id) => {
   const response = await api.delete(`/devices/${id}`);
+  return response.data;
+};
+
+export const importDevicesCsv = async (formData) => {
+  const response = await api.post('/devices/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const bulkDeleteDevices = async (deviceIds) => {
+  const response = await api.post('/devices/bulk-delete', { device_ids: deviceIds });
+  return response.data;
+};
+
+export const bulkUpdateDeviceStatus = async (deviceIds, status) => {
+  const response = await api.post('/devices/bulk-status', { device_ids: deviceIds, status });
   return response.data;
 };
 

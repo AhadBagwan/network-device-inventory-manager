@@ -4,6 +4,7 @@ import {
   HiServer, 
   HiLightningBolt, 
   HiDownload, 
+  HiUpload,
   HiPlus, 
   HiMenuAlt2, 
   HiCog, 
@@ -12,7 +13,6 @@ import {
   HiInformationCircle,
   HiChartBar,
   HiCollection,
-  HiUserCircle,
   HiChevronDown,
   HiShieldCheck
 } from 'react-icons/hi';
@@ -24,6 +24,7 @@ import toast from 'react-hot-toast';
 const Navbar = ({
   onPingAll,
   onExport,
+  onImport,
   onAddDevice,
   toggleSidebar,
   isPingingAll
@@ -52,7 +53,6 @@ const Navbar = ({
 
   const isActive = (path) => location.pathname === path;
 
-  // Helper for initials
   const getInitials = (name) => {
     if (!name) return 'OP';
     const parts = name.trim().split(' ');
@@ -96,7 +96,7 @@ const Navbar = ({
           </Link>
         </div>
 
-        {/* Center Nav Links (when authenticated) */}
+        {/* Center Nav Links */}
         {isAuthenticated && (
           <nav className="hidden lg:flex items-center gap-1 text-xs font-semibold">
             <Link
@@ -179,6 +179,17 @@ const Navbar = ({
                 </button>
               )}
 
+              {onImport && (
+                <button
+                  onClick={onImport}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 text-xs font-semibold transition-all"
+                  title="Import inventory assets from CSV file"
+                >
+                  <HiUpload className="w-4 h-4" />
+                  <span className="hidden md:inline">Import</span>
+                </button>
+              )}
+
               {onExport && (
                 <button
                   onClick={onExport}
@@ -219,7 +230,6 @@ const Navbar = ({
                 {/* Profile Dropdown Menu */}
                 {isProfileOpen && (
                   <div className="absolute right-0 mt-2 w-64 p-3 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3">
-                    {/* User Card */}
                     <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-xs text-[var(--text-main)] truncate">
@@ -238,7 +248,6 @@ const Navbar = ({
                       </div>
                     </div>
 
-                    {/* Quick Menu Links */}
                     <div className="space-y-1 text-xs font-semibold font-mono">
                       <Link
                         to="/settings"
@@ -259,7 +268,6 @@ const Navbar = ({
                       </Link>
                     </div>
 
-                    {/* Logout Button Inside Profile Dropdown */}
                     <div className="pt-2 border-t border-[var(--border-color)]">
                       <button
                         onClick={handleLogout}
