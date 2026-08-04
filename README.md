@@ -1,30 +1,53 @@
-# 🌐 Network Device Inventory Manager (NOC Dashboard)
+# 🌐 NetPulse - Network Device Inventory & Monitoring Dashboard
 
-> A modern, full-stack Network Operations Center (NOC) inventory management system built with **React 18, Vite, Tailwind CSS, Python 3.12, Flask, SQLAlchemy, Ping3, and Pandas**.
+> A production-grade, enterprise Network Operations Center (NOC) inventory & telemetry monitoring platform built with **React 18, Vite, Tailwind CSS, Python 3.12, Flask, Flask-JWT-Extended, SQLAlchemy, Ping3, and Pandas**.
 
-![NOC Dashboard Preview](https://raw.githubusercontent.com/placeholder/noc-inventory/main/docs/dashboard-preview.png)
+[![GitHub license](https://img.shields.io/github/license/AhadBagwan/network-device-inventory-manager)](https://github.com/AhadBagwan/network-device-inventory-manager/blob/main/LICENSE)
+[![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite-blue)](https://react.dev/)
+[![Flask](https://img.shields.io/badge/Backend-Python%203.12%20%2B%20Flask-green)](https://flask.palletsprojects.com/)
+[![License](https://img.shields.io/badge/Security-JWT%20Bearer%20Auth-amber)](https://flask-jwt-extended.readthedocs.io/)
 
 ---
 
 ## 📌 Project Overview
 
-The **Network Device Inventory Manager** is a production-like NOC telemetry dashboard engineered for Network Engineers, System Administrators, and NOC Operators. It provides centralized asset tracking, real-time ICMP ping probing, telemetry monitoring, multi-attribute filtering, instant live search, CSV inventory exporting, and interactive infrastructure distribution analytics.
+**NetPulse** represents an internal NOC Operations Console engineered for Network Engineers, Systems Architects, and Security Operators. It delivers full-lifecycle asset tracking, ICMP latency trend logging, multi-select bulk operations, CSV batch importing, interactive 42U equipment rack cabinet inspection, SVG network topology visualization, and global keyboard command palette control.
 
 ---
 
+## ✨ Key Features & Capability Matrix
 
+### 🔐 1. Professional NOC Authentication System
+- **JWT Authorization**: Secured endpoints via `Flask-JWT-Extended` and Werkzeug password hashing.
+- **Operator Profile & Dropdown**: Relocated logout button into profile menu with user initials badge.
+- **Default Operator Credentials**:
+  - Email: `admin@netpulse.noc`
+  - Password: `Admin@123`
 
-## ✨ Key Features
+### ⚡ 2. Telemetry & Live ICMP Probing
+- **Real-Time Latency Probing**: Probes IP availability powered by `ping3` with automated socket fallbacks.
+- **Ping History RTT Tracking**: Historical ICMP latency logs and trend views per asset.
+- **Auto-Scan Refresh Interval**: Configurable background auto-probing interval (*Off / 30s / 60s / 5m*).
+- **NOC Event Alerts**: Real-time notifications for critical host outages, maintenance windows, and system logs.
 
-- **🔐 Restricted NOC Admin Portal (`/admin`)**: Dedicated Master Administrator Console protected by login authentication (`Username: Admin`, `Password: admin@123`). Allows full CRUD inventory control, 1-click database re-seeding, log purging, and system maintenance toggles.
-- **📊 Comprehensive NOC Metrics**: Live telemetry cards for Total Assets, Online/Offline status, Routers, Switches, Firewalls, Servers, Average Latency, and SLA Availability.
-- **⚡ Single & Bulk Ping Probing**: Real-time ICMP response time probing powered by `ping3` with automated socket permission fallbacks.
-- **🔍 Instant Live Search**: Filter assets instantly across Hostname, IPv4, Vendor, Model, Location, and OS.
-- **🎯 Multi-Parameter Filtering & Sorting**: Filter by Vendor, Device Type, Status, and Location; sort table columns dynamically.
-- **📑 Detailed Asset Slide-Over Drawer**: Inspect full technical metadata (MAC Address, Serial Number, Rack Placement, Firmware version, Operator Notes).
-- **📥 CSV Inventory Export**: Download formatted CSV audit reports generated on-the-fly using Pandas.
-- **🎨 4 Custom NOC Themes**: Seamlessly toggle between **Dark NOC (Default)**, **Professional Blue (Grafana style)**, **Cyber Green (Matrix style)**, and **Deep Purple**. Choice persisted in LocalStorage.
-- **🌱 Automated Database Seeding**: Pre-loaded with 15 realistic enterprise assets (Cisco, Fortinet, Juniper, Dell, HP, Palo Alto, Ubiquiti, VMware).
+### 📥 3. Batch Inventory Import & Export
+- **CSV Batch Import Engine**: Parse inventory CSV files via Pandas with IP/hostname deduplication & row-by-row validation error reports.
+- **Sample CSV Template Download**: Download pre-formatted CSV template.
+- **1-Click CSV Export**: Download inventory report with single click.
+
+### 📑 4. Multi-Select & Bulk Actions
+- **Checkbox Table Multi-Select**: Row checkboxes and "Select All" header toggle.
+- **Floating Bulk Actions Bar**: Perform `Ping Selected`, `Set Maintenance`, or `Delete Selected` on multiple assets simultaneously.
+
+### 🎨 5. Enhanced Asset Metadata & Custom NOC Themes
+- **Enterprise Asset Fields**: Tags (`#Core`, `#Critical`, `#DMZ`), Device Group (`Datacenter Core`, `HQ Infrastructure`), Firmware Version, and Warranty Expiry Date.
+- **6 Curated NOC Themes**: Toggle between **Cyberpunk Dark**, **Grafana Blue**, **Matrix Cyber Green**, **Deep Purple**, **Solarized Dark**, and **Light NOC**. Choice previewed with color swatches.
+
+### 🛠️ 6. Enterprise Productivity & Visualizations
+- **Command Palette (`Ctrl+K` / `Cmd+K`)**: Keyboard-driven global search across assets, routes, and quick actions.
+- **Keyboard Shortcuts Helper (`?`)**: Operator hotkey cheat sheet modal.
+- **42U Rack Cabinet Inspector**: Visual 42U equipment chassis view (U1 to U42) showing slot placement and status badges.
+- **Interactive SVG Topology Map**: Visual node-link network map showing Core Routers, Switches, Firewalls, Servers, and APs connected with status link lines.
 
 ---
 
@@ -32,156 +55,146 @@ The **Network Device Inventory Manager** is a production-like NOC telemetry dash
 
 ### Frontend
 - **Framework**: React 18 (Vite)
-- **Styling**: Tailwind CSS & Vanilla CSS Variables
+- **Styling**: Vanilla CSS Variables & Tailwind CSS
 - **Routing**: React Router DOM v6
-- **HTTP Client**: Axios
-- **Charts & Visualizations**: Recharts
-- **Animations & Icons**: Framer Motion & React Icons
-- **Notifications**: React Hot Toast
-- **State & Theme**: Context API & LocalStorage
+- **HTTP Client**: Axios with JWT Bearer Interceptors
+- **Charts & Visualizations**: Recharts & Custom SVG Node Link Diagrams
+- **Icons & Notifications**: React Icons & React Hot Toast
 
 ### Backend
 - **Language**: Python 3.12
-- **Framework**: Flask & Flask-CORS
-- **Database ORM**: Flask-SQLAlchemy (SQLite)
-- **Ping Probing**: Ping3 & Python `socket` module
-- **Validation**: Python `ipaddress` module & Regex
-- **CSV Processing**: Pandas & Python `io`
+- **Framework**: Flask, Flask-CORS, Flask-JWT-Extended
+- **Database ORM**: Flask-SQLAlchemy (SQLite in WAL Mode for concurrency)
+- **Ping Execution**: Ping3 & Python `socket` module
+- **Data Processing**: Pandas & Python `io`
+- **WSGI Server**: Gunicorn
 
 ---
 
-## 📁 Folder Structure
+## 📁 Project Architecture & Directory Structure
 
 ```
-network-device-inventory/
-│
+network-device-inventory-manager/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Navbar.jsx          # Header with live NOC clock & quick actions
-│   │   │   ├── Sidebar.jsx         # Collapsible navigation & health widget
-│   │   │   ├── DashboardCards.jsx  # Animated telemetry statistic cards
-│   │   │   ├── DeviceTable.jsx     # Asset table with sticky header & pagination
-│   │   │   ├── DeviceModal.jsx     # Add/Edit popup modal with validation
-│   │   │   ├── DeleteModal.jsx     # Delete asset confirmation dialog
-│   │   │   ├── SearchBar.jsx       # Instant search input
-│   │   │   ├── Filters.jsx         # Vendor, Status, Type, Location dropdowns
-│   │   │   ├── ThemeSwitcher.jsx   # Theme switcher dropdown (4 themes)
-│   │   │   ├── VendorChart.jsx     # Donut chart for vendor breakdown
-│   │   │   ├── DeviceChart.jsx     # Bar chart for device type breakdown
-│   │   │   ├── RecentActivity.jsx  # NOC audit log activity timeline
-│   │   │   └── DeviceDrawer.jsx    # Right slide-over detailed asset inspector
-│   │   ├── pages/
-│   │   │   └── Dashboard.jsx       # Primary NOC dashboard controller
-│   │   ├── services/
-│   │   │   └── api.js              # Axios backend API client
+│   │   │   ├── Navbar.jsx               # Navigation bar with Profile & Quick Actions
+│   │   │   ├── Sidebar.jsx              # Navigation sidebar & health metrics widget
+│   │   │   ├── DashboardCards.jsx       # Animated telemetry statistic cards
+│   │   │   ├── DeviceTable.jsx          # Asset table with checkboxes & sticky header
+│   │   │   ├── DeviceDrawer.jsx         # Detailed asset slide-over inspector
+│   │   │   ├── DeviceModal.jsx          # Add/Edit device asset modal with validation
+│   │   │   ├── ImportModal.jsx          # CSV batch upload & template download modal
+│   │   │   ├── CommandPalette.jsx       # Global Ctrl+K command search palette
+│   │   │   ├── KeyboardShortcutsModal.jsx# Hotkeys cheat sheet overlay
+│   │   │   ├── RackDiagramModal.jsx     # Visual 42U equipment rack cabinet inspector
+│   │   │   ├── TopologyMap.jsx          # SVG node-link network topology map
+│   │   │   ├── RecentAlerts.jsx         # NOC system event notification alerts
+│   │   │   ├── RecentActivity.jsx       # NOC activity audit log timeline
+│   │   │   ├── ThemeSwitcher.jsx        # Theme dropdown with color swatches
+│   │   │   └── Filters.jsx              # Multi-parameter filter controls
 │   │   ├── context/
-│   │   │   └── ThemeContext.jsx    # Theme switcher context manager
-│   │   ├── App.jsx                 # Main Router entry
-│   │   └── index.css               # Design system & NOC CSS tokens
-│   ├── package.json
-│   └── vite.config.js
+│   │   │   ├── AuthContext.jsx          # JWT authentication context
+│   │   │   └── ThemeContext.jsx         # Theme context manager
+│   │   ├── pages/
+│   │   │   ├── Dashboard.jsx            # Operations NOC dashboard controller
+│   │   │   ├── Analytics.jsx            # Infrastructure analytics page
+│   │   │   ├── Login.jsx                # Operator login page
+│   │   │   └── Register.jsx             # Operator registration page
+│   │   └── services/
+│   │       └── api.js                   # Axios HTTP client with JWT interceptors
+│   ├── vercel.json                      # Vercel SPA routing redirects
+│   └── package.json
 │
 ├── backend/
-│   ├── app.py                      # Flask app entry point & CORS initialization
-│   ├── models.py                   # SQLAlchemy models (Device & Activity)
-│   ├── database.py                 # SQLAlchemy db instance
-│   ├── routes.py                   # REST API routes & input validation
-│   ├── seed.py                     # Database seeding script (15 devices)
-│   ├── config.py                   # Flask app configuration
-│   ├── requirements.txt            # Python dependencies
-│   └── services/
-│       ├── ping_service.py         # ICMP ping execution & socket fallback
-│       └── csv_service.py          # Pandas CSV generation service
-│
+│   ├── app.py                           # Flask app entry point
+│   ├── models.py                        # SQLAlchemy models (User, Device, PingHistory, Activity, Notification)
+│   ├── database.py                      # SQLAlchemy instance with SQLite WAL mode
+│   ├── routes.py                        # REST API routes & validation
+│   ├── seed.py                          # Database seed script (15 default assets)
+│   ├── Procfile                         # Production WSGI gunicorn deployment file
+│   └── requirements.txt                 # Python backend dependencies
 └── README.md
 ```
 
 ---
 
-## 🚀 Quick Start & Installation Guide
-
-### Prerequisites
-- **Node.js**: v18.0 or higher
-- **Python**: 3.12 (or Python 3.10+)
+## 🚀 Quick Start Guide
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/your-username/network-device-inventory.git
-cd network-device-inventory
+git clone https://github.com/AhadBagwan/network-device-inventory-manager.git
+cd network-device-inventory-manager
 ```
 
 ### 2. Backend Setup
 ```bash
 cd backend
 
-# Create virtual environment (optional but recommended)
+# Create virtual environment (optional)
 python -m venv venv
-# On Windows:
+# Windows:
 venv\Scripts\activate
-# On Linux/macOS:
+# Linux/macOS:
 source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run backend server (will automatically seed SQLite database on first run)
+# Launch Flask Backend Server
 python app.py
 ```
-*Backend API will run at `http://127.0.0.1:5000`*
+*Backend runs live at `http://127.0.0.1:5000`*
 
 ### 3. Frontend Setup
 ```bash
 cd ../frontend
 
-# Install npm packages
+# Install node dependencies
 npm install
 
-# Start Vite development server
+# Launch Vite Development Server
 npm run dev
 ```
-*Frontend app will run at `http://localhost:5173`*
+*Frontend runs live at `http://localhost:5173`*
 
 ---
 
-## 📡 API Endpoints Reference
+## 📡 Key REST API Endpoints
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/devices` | Get all inventory devices with search, filtering & sorting |
-| `POST` | `/api/devices` | Create new device asset (validates IPv4, MAC, duplicates) |
-| `GET` | `/api/devices/<id>` | Get single device asset details |
-| `PUT` | `/api/devices/<id>` | Edit existing device asset |
-| `DELETE` | `/api/devices/<id>` | Delete device asset & log activity |
-| `POST` | `/api/devices/ping/<id>` | Execute ICMP ping probe on single device |
-| `POST` | `/api/devices/ping-all` | Execute network-wide bulk ping scan |
-| `GET` | `/api/devices/export` | Export inventory as downloadable CSV file |
-| `GET` | `/api/statistics` | Aggregate telemetry stats & chart breakdowns |
-| `GET` | `/api/activities` | Get 20 most recent NOC activity audit logs |
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/login` | Authenticate operator & issue JWT token | No |
+| `POST` | `/api/register` | Register new administrator account | No |
+| `GET` | `/api/devices` | Get devices with filtering, sorting & search | Yes |
+| `POST` | `/api/devices` | Add new device asset with IPv4 validation | Yes |
+| `PUT` | `/api/devices/<id>` | Update existing device asset specifications | Yes |
+| `DELETE` | `/api/devices/<id>` | Delete device asset | Yes |
+| `POST` | `/api/devices/import` | Upload & batch import devices from CSV | Yes |
+| `POST` | `/api/devices/bulk-delete` | Batch delete selected device IDs | Yes |
+| `POST` | `/api/devices/bulk-status` | Batch update operational status | Yes |
+| `POST` | `/api/devices/ping/<id>` | Probe single device IP via ICMP | Yes |
+| `POST` | `/api/devices/ping-all` | Execute bulk ping scan across all assets | Yes |
+| `GET` | `/api/notifications` | Get NOC system alert notifications | Yes |
+| `GET` | `/api/statistics` | Get aggregate health metrics & breakdown stats | Yes |
 
 ---
 
-## ☁️ Deployment Instructions
+## ☁️ Production Hosting
 
 ### Frontend (Vercel)
-1. Push project to GitHub.
-2. Connect repository to [Vercel](https://vercel.com).
-3. Set **Root Directory** to `frontend`.
-4. Add environment variable:
-   `VITE_API_BASE_URL=https://your-backend.onrender.com/api`
+- Set **Root Directory** to `frontend`.
+- Set Environment Variable: `VITE_API_BASE_URL=https://your-backend.onrender.com/api`
 
 ### Backend (Render)
-1. Create a **Web Service** on [Render](https://render.com).
-2. Set **Root Directory** to `backend`.
-3. Set **Build Command**: `pip install -r requirements.txt`
-4. Set **Start Command**: `gunicorn app:app` (or `python app.py`)
+- Set **Root Directory** to `backend`.
+- Set **Build Command**: `pip install -r requirements.txt`
+- Set **Start Command**: `gunicorn app:app`
 
 ---
 
 ## 📜 License
 
-Distributed under the **MIT License**. See `LICENSE` for details.
-
----
+Distributed under the **MIT License**.
 
 *Engineered with precision for Network Operations Centers.*
