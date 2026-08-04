@@ -9,6 +9,10 @@ import DeviceDrawer from '../components/DeviceDrawer';
 import DeviceModal from '../components/DeviceModal';
 import DeleteModal from '../components/DeleteModal';
 import ImportModal from '../components/ImportModal';
+import CommandPalette from '../components/CommandPalette';
+import KeyboardShortcutsModal from '../components/KeyboardShortcutsModal';
+import RackDiagramModal from '../components/RackDiagramModal';
+import TopologyMap from '../components/TopologyMap';
 import VendorChart from '../components/VendorChart';
 import DeviceChart from '../components/DeviceChart';
 import RecentActivity from '../components/RecentActivity';
@@ -30,7 +34,7 @@ import {
   bulkUpdateDeviceStatus 
 } from '../services/api';
 import toast, { Toaster } from 'react-hot-toast';
-import { HiClock } from 'react-icons/hi';
+import { HiClock, HiSearch, HiServer, HiQuestionMarkCircle } from 'react-icons/hi';
 
 const Dashboard = () => {
   const [devices, setDevices] = useState([]);
@@ -65,6 +69,10 @@ const Dashboard = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isRackDiagramOpen, setIsRackDiagramOpen] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiErrors, setApiErrors] = useState({});
 
@@ -101,6 +109,21 @@ const Dashboard = () => {
   useEffect(() => {
     fetchTelemetry();
   }, [fetchTelemetry]);
+
+  // Keyboard Shortcuts Listener (Ctrl+K, ?, Shift+A, etc.)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      } else if (e.key === '?' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+        e.preventDefault();
+        setIsShortcutsOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Auto Refresh Interval Effect
   useEffect(() => {
@@ -339,27 +362,53 @@ const Dashboard = () => {
               </p>
             </div>
 
-            {/* Auto Refresh Select Dropdown */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--text-muted)] font-mono flex items-center gap-1">
-                <HiClock className="w-4 h-4 text-[var(--accent-color)]" />
-                Auto-Scan:
-              </span>
-              <select
-                value={autoRefreshInterval}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setAutoRefreshInterval(val);
-                  if (val > 0) toast.success(`Auto-scan set to every ${val}s.`);
-                  else toast.success('Auto-scan disabled.');
-                }}
-                className="px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-xs text-[var(--text-main)] font-mono focus:outline-none focus:border-[var(--accent-color)] cursor-pointer"
+            {/* Quick Action Tools Bar */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setIsCommandPaletteOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] font-mono transition-all"
+                title="Open Command Palette (Ctrl+K)"
               >
-                <option value={0}>Disabled</option>
-                <option value={30}>Every 30s</option>
-                <option value={60}>Every 60s</option>
-                <option value={300}>Every 5m</option>
-              </select>
+                <HiSearch className="w-3.5 h-3.5 text-[var(--accent-color)]" />
+                <span>Ctrl+K</span>
+              </button>
+
+              <button
+                onClick={() => setIsRackDiagramOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/30 hover:bg-teal-500/20 text-xs font-bold font-mono transition-all"
+                title="Inspect 42U Equipment Rack Cabinet"
+              >
+                <HiServer className="w-3.5 h-3.5" />
+                <span>42U Rack</span>
+              </button>
+
+              <button
+                onClick={() => setIsShortcutsOpen(true)}
+                className="p-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+                title="Keyboard Shortcuts (?)"
+              >
+                <HiQuestionMarkCircle className="w-4 h-4" />
+              </button>
+
+              {/* Auto Refresh Select Dropdown */}
+              <div className="flex items-center gap-1.5 pl-2 border-l border-[var(--border-color)]">
+                <HiClock className="w-4 h-4 text-[var(--accent-color)]" />
+                <select
+                  value={autoRefreshInterval}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setAutoRefreshInterval(val);
+                    if (val > 0) toast.success(`Auto-scan set to every ${val}s.`);
+                    else toast.success('Auto-scan disabled.');
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-xs text-[var(--text-main)] font-mono focus:outline-none focus:border-[var(--accent-color)] cursor-pointer"
+                >
+                  <option value={0}>Auto Off</option>
+                  <option value={30}>30s Scan</option>
+                  <option value={60}>60s Scan</option>
+                  <option value={300}>5m Scan</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -421,6 +470,15 @@ const Dashboard = () => {
             onBulkPing={handleBulkPing}
           />
 
+          {/* Topology Map Visualization */}
+          <TopologyMap
+            devices={devices}
+            onSelectDevice={(device) => {
+              setSelectedDevice(device);
+              setIsDrawerOpen(true);
+            }}
+          />
+
           {/* Analytics Visualizations Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <VendorChart data={stats?.vendor_breakdown} />
@@ -479,6 +537,39 @@ const Dashboard = () => {
         onSuccess={() => {
           setIsImportModalOpen(false);
           fetchTelemetry();
+        }}
+      />
+
+      {/* Command Palette Modal */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        devices={devices}
+        onSelectDevice={(dev) => {
+          setSelectedDevice(dev);
+          setIsDrawerOpen(true);
+        }}
+        onAddDevice={() => setIsAddModalOpen(true)}
+        onPingAll={handlePingAll}
+        onExport={handleExport}
+        onImport={() => setIsImportModalOpen(true)}
+      />
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
+      />
+
+      {/* 42U Rack Diagram Modal */}
+      <RackDiagramModal
+        isOpen={isRackDiagramOpen}
+        onClose={() => setIsRackDiagramOpen(false)}
+        devices={devices}
+        onSelectDevice={(dev) => {
+          setIsRackDiagramOpen(false);
+          setSelectedDevice(dev);
+          setIsDrawerOpen(true);
         }}
       />
 
