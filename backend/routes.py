@@ -43,10 +43,19 @@ def create_notification(title: str, message: str, severity: str = 'info'):
 def send_otp_email(to_email: str, otp_code: str):
     """
     Sends HTML & Plain Text OTP verification email via SMTP (e.g. Gmail / Mailtrap / Custom SMTP).
+    Also writes to backend/otp_debug.log as local fallback.
     """
     import smtplib
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
+
+    # Log to local debug file for instant verification
+    try:
+        log_path = os.path.join(os.path.dirname(__file__), 'otp_debug.log')
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] OTP for {to_email}: {otp_code}\n")
+    except Exception as log_err:
+        print(f"Debug log error: {log_err}")
 
     smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
     smtp_port = int(os.environ.get('SMTP_PORT', 587))
@@ -54,7 +63,11 @@ def send_otp_email(to_email: str, otp_code: str):
     smtp_pass = os.environ.get('SMTP_PASS')
 
     if not smtp_user or not smtp_pass:
-        print(f"[SECURITY ALERT] SMTP_USER or SMTP_PASS environment variables not configured. OTP generated for {to_email}.")
+        print(f"\n=======================================================")
+        print(f" [OTP DISPATCH] Destination: {to_email}")
+        print(f" [OTP CODE]: {otp_code}")
+        print(f" [NOTE]: Set SMTP_USER & SMTP_PASS in backend/.env for direct Gmail inbox delivery.")
+        print(f"=======================================================\n")
         return False
 
     try:
@@ -90,10 +103,10 @@ def send_otp_email(to_email: str, otp_code: str):
             server.login(smtp_user, smtp_pass)
             server.send_message(msg)
 
-        print(f"[SUCCESS 200] OTP email successfully dispatched to {to_email} via SMTP.")
+        print(f"[SUCCESS 200] OTP email successfully sent to {to_email} via Gmail SMTP.")
         return True
     except Exception as e:
-        print(f"[ERROR] Failed to dispatch OTP email via SMTP to {to_email}: {e}")
+        print(f"[ERROR] Failed to send OTP email via SMTP to {to_email}: {e}")
         return False
 
 # ==========================================
@@ -219,7 +232,7 @@ def forgot_password():
     create_notification('Password Reset Requested', f'OTP verification code sent to {email}.', 'warning')
     db.session.commit()
 
-    # Send email to user's real email inbox
+    # Send email to user's email inbox & write to log file
     email_sent = send_otp_email(email, otp_code)
 
     return jsonify({
