@@ -4,14 +4,12 @@ import {
   HiCollection, 
   HiServer, 
   HiChartBar, 
-  HiClock, 
+  HiUsers,
   HiBookOpen, 
   HiCog, 
   HiInformationCircle, 
   HiLogout, 
-  HiX,
-  HiCheckCircle,
-  HiShieldCheck
+  HiX
 } from 'react-icons/hi';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -25,6 +23,7 @@ const Sidebar = ({ isOpen, onClose, selectedType, onSelectType, stats }) => {
     { label: 'Dashboard', path: '/dashboard', icon: HiCollection },
     { label: 'Devices', path: '/dashboard', icon: HiServer },
     { label: 'Analytics', path: '/analytics', icon: HiChartBar },
+    { label: 'Team & Users', path: '/users', icon: HiUsers },
     { label: 'Guide', path: '/guide', icon: HiBookOpen },
     { label: 'Settings', path: '/settings', icon: HiCog },
     { label: 'About', path: '/about', icon: HiInformationCircle },

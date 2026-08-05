@@ -12,6 +12,8 @@ class User(db.Model):
     full_name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(50), default='NOC Operator')
+    status = db.Column(db.String(20), default='Active')  # Active, Suspended
     created_at = db.Column(db.DateTime, default=get_utc_now)
 
     def set_password(self, password: str):
@@ -27,6 +29,8 @@ class User(db.Model):
             'id': self.id,
             'full_name': self.full_name,
             'email': self.email,
+            'role': self.role or 'NOC Operator',
+            'status': self.status or 'Active',
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 

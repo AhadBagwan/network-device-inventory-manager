@@ -4,6 +4,39 @@ from models import User, Device, Activity, PingHistory, Notification
 
 now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
 
+SEED_USERS = [
+    {
+        "full_name": "Admin User",
+        "email": "admin@netpulse.noc",
+        "role": "Super Admin",
+        "status": "Active"
+    },
+    {
+        "full_name": "John Doe",
+        "email": "john.doe@netpulse.noc",
+        "role": "Network Engineer",
+        "status": "Active"
+    },
+    {
+        "full_name": "Sarah Connor",
+        "email": "sarah.connor@netpulse.noc",
+        "role": "NOC Operations Lead",
+        "status": "Active"
+    },
+    {
+        "full_name": "Alex Mercer",
+        "email": "alex.mercer@netpulse.noc",
+        "role": "Cyber Security Specialist",
+        "status": "Active"
+    },
+    {
+        "full_name": "Ahad Bagwan",
+        "email": "bagwanahad@gmail.com",
+        "role": "Senior Infrastructure Architect",
+        "status": "Active"
+    }
+]
+
 SEED_DEVICES = [
     {
         "hostname": "HQ-RTR-01",
@@ -308,17 +341,20 @@ SEED_DEVICES = [
 ]
 
 def seed_database():
-    """Populates database with initial admin user, 15 devices, and initial alert notifications."""
-    if User.query.count() == 0:
-        print("Seeding initial default admin user...")
-        admin = User(
-            full_name="Admin User",
-            email="admin@netpulse.noc"
-        )
-        admin.set_password("Admin@123")
-        db.session.add(admin)
-        db.session.commit()
-        print("Default admin created: admin@netpulse.noc / Admin@123")
+    """Populates database with team users (John Doe, Sarah Connor, etc.), 15 devices, and alerts."""
+    for user_data in SEED_USERS:
+        existing = User.query.filter_by(email=user_data['email']).first()
+        if not existing:
+            u = User(
+                full_name=user_data['full_name'],
+                email=user_data['email'],
+                role=user_data['role'],
+                status=user_data['status']
+            )
+            u.set_password("Admin@123")
+            db.session.add(u)
+    db.session.commit()
+    print(f"Seeded {len(SEED_USERS)} NOC operators & team users.")
 
     if Device.query.count() == 0:
         print("Seeding initial 15 network devices into inventory database...")

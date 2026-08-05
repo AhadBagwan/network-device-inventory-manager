@@ -118,7 +118,7 @@ def api_index():
     return jsonify({
         'name': 'NetPulse NOC Telemetry Manager API',
         'status': 'Online',
-        'version': '2.6.0',
+        'version': '2.7.0',
         'auth_stack': 'Flask-JWT-Extended',
         'endpoints': {
             'register': 'POST /api/register',
@@ -126,6 +126,7 @@ def api_index():
             'forgot_password': 'POST /api/forgot-password',
             'verify_otp': 'POST /api/verify-otp',
             'reset_password': 'POST /api/reset-password',
+            'users': 'GET/POST /api/users (Protected)',
             'profile': 'GET /api/profile (Protected)',
             'logout': 'POST /api/logout (Protected)',
             'devices': 'GET/POST /api/devices (Protected)'
@@ -164,7 +165,7 @@ def register():
     if errors:
         return jsonify({'errors': errors}), 400
 
-    user = User(full_name=full_name, email=email)
+    user = User(full_name=full_name, email=email, role='NOC Operator', status='Active')
     user.set_password(password)
 
     db.session.add(user)
@@ -192,6 +193,9 @@ def login():
     user = User.query.filter_by(email=email).first()
     if not user or not user.check_password(password):
         return jsonify({'message': 'Invalid email address or password.'}), 401
+
+    if user.status == 'Suspended':
+        return jsonify({'message': 'This account has been suspended. Please contact your NOC Administrator.'}), 403
 
     access_token = create_access_token(identity=str(user.id))
     log_activity('Login', user.email, f'User {user.full_name} authenticated.')
@@ -317,6 +321,97 @@ def logout():
     log_activity('Logout', email, 'User logged out.')
     db.session.commit()
     return jsonify({'message': 'Logged out successfully.'}), 200
+
+# ==========================================
+# USER MANAGEMENT ROUTES (ADMIN & OPERATORS)
+# ==========================================
+
+@api.route('/users', methods=['GET'])
+@jwt_required()
+def get_users():
+    users = User.query.order_by(User.created_at.asc()).all()
+    return jsonify([u.to_dict() for u in users]), 200
+
+@api.route('/users', methods=['POST'])
+@jwt_required()
+def create_user():
+    data = request.get_json() or {}
+    full_name = data.get('full_name', '').strip()
+    email = data.get('email', '').strip().lower()
+    password = data.get('password', '')
+    role = data.get('role', 'NOC Operator').strip()
+
+    errors = {}
+
+    if not full_name:
+        errors['full_name'] = 'Full name is required.'
+    if not email:
+        errors['email'] = 'Email address is required.'
+    elif not EMAIL_REGEX.match(email):
+        errors['email'] = 'Enter a valid email address.'
+    elif User.query.filter_by(email=email).first():
+        errors['email'] = 'An account with this email address already exists.'
+
+    if not password or len(password) < 6:
+        errors['password'] = 'Password must be at least 6 characters long.'
+
+    if errors:
+        return jsonify({'errors': errors}), 400
+
+    new_user = User(
+        full_name=full_name,
+        email=email,
+        role=role,
+        status='Active'
+    )
+    new_user.set_password(password)
+
+    db.session.add(new_user)
+    log_activity('Created Team Member', email, f'Admin added user account for {full_name} ({role}).')
+    create_notification('Team Member Added', f'Added NOC operator {full_name} ({role}).', 'info')
+    db.session.commit()
+
+    return jsonify(new_user.to_dict()), 201
+
+@api.route('/users/<int:user_id>', methods=['PUT'])
+@jwt_required()
+def update_user(user_id):
+    user = User.query.get_or_404(user_id)
+    data = request.get_json() or {}
+
+    full_name = data.get('full_name', user.full_name).strip()
+    role = data.get('role', user.role).strip()
+    status = data.get('status', user.status).strip()
+
+    if status not in ['Active', 'Suspended']:
+        status = 'Active'
+
+    user.full_name = full_name
+    user.role = role
+    user.status = status
+
+    if data.get('password'):
+        if len(data['password']) >= 6:
+            user.set_password(data['password'])
+
+    log_activity('Updated User', user.email, f'Updated user {user.full_name} (Role: {role}, Status: {status}).')
+    db.session.commit()
+
+    return jsonify(user.to_dict()), 200
+
+@api.route('/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
+def delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    name = user.full_name
+    email = user.email
+
+    db.session.delete(user)
+    log_activity('Deleted User', email, f'Removed user account {name} ({email}).')
+    create_notification('User Removed', f'Removed user {name} from NOC team.', 'warning')
+    db.session.commit()
+
+    return jsonify({'message': f'User {name} successfully removed.'}), 200
 
 # ==========================================
 # DEVICE INVENTORY & TELEMETRY ROUTES
