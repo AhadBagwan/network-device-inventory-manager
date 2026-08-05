@@ -19,9 +19,12 @@ const ThemeSwitcher = () => {
 
   const currentThemeObj = THEMES.find((t) => t.id === theme) || THEMES[0];
 
+  const darkThemes = THEMES.filter((t) => t.type === 'dark');
+  const lightThemes = THEMES.filter((t) => t.type === 'light');
+
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Theme Icon Box Trigger Button (No text clutter) */}
+      {/* Theme Icon Box Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="p-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] hover:bg-[var(--bg-hover)] text-[var(--text-main)] transition-all shadow-sm flex items-center justify-center group"
@@ -39,37 +42,72 @@ const ThemeSwitcher = () => {
 
       {/* Theme Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-52 p-2 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
-          <div className="px-3 py-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border-color)] mb-1">
-            Appearance / Theme
+        <div className="absolute right-0 mt-2 w-56 p-2 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2 max-h-96 overflow-y-auto">
+          {/* Dark Themes Header */}
+          <div>
+            <div className="px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border-color)] mb-1">
+              🌙 NOC Dark Themes
+            </div>
+            {darkThemes.map((t) => {
+              const isSelected = theme === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    changeTheme(t.id);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs text-left transition-all ${
+                    isSelected
+                      ? 'bg-[var(--bg-hover)] text-[var(--accent-color)] font-bold border border-[var(--border-color)] shadow-sm'
+                      : 'text-[var(--text-main)] hover:bg-[var(--bg-hover)]/70'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm shrink-0"
+                      style={{ backgroundColor: t.color }}
+                    />
+                    <span>{t.name}</span>
+                  </div>
+                  {isSelected && <HiCheck className="w-4 h-4 text-emerald-400 font-bold" />}
+                </button>
+              );
+            })}
           </div>
 
-          {THEMES.map((t) => {
-            const isSelected = theme === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => {
-                  changeTheme(t.id);
-                  setIsOpen(false);
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-left transition-all ${
-                  isSelected
-                    ? 'bg-[var(--bg-hover)] text-[var(--accent-color)] font-bold border border-[var(--border-color)] shadow-sm'
-                    : 'text-[var(--text-main)] hover:bg-[var(--bg-hover)]/70'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm"
-                    style={{ backgroundColor: t.color }}
-                  />
-                  <span>{t.name}</span>
-                </div>
-                {isSelected && <HiCheck className="w-4 h-4 text-emerald-400 font-bold" />}
-              </button>
-            );
-          })}
+          {/* Light Themes Header */}
+          <div>
+            <div className="px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border-color)] mb-1 pt-1">
+              ☀️ NOC Light Themes
+            </div>
+            {lightThemes.map((t) => {
+              const isSelected = theme === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    changeTheme(t.id);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs text-left transition-all ${
+                    isSelected
+                      ? 'bg-[var(--bg-hover)] text-[var(--accent-color)] font-bold border border-[var(--border-color)] shadow-sm'
+                      : 'text-[var(--text-main)] hover:bg-[var(--bg-hover)]/70'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-sm shrink-0"
+                      style={{ backgroundColor: t.color }}
+                    />
+                    <span>{t.name}</span>
+                  </div>
+                  {isSelected && <HiCheck className="w-4 h-4 text-emerald-400 font-bold" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
