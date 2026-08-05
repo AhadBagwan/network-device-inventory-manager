@@ -41,31 +41,60 @@ def create_notification(title: str, message: str, severity: str = 'info'):
     db.session.add(notif)
 
 def send_otp_email(to_email: str, otp_code: str):
-    """Sends OTP verification email via SMTP or logs to system timeline."""
+    """
+    Sends HTML & Plain Text OTP verification email via SMTP (e.g. Gmail / Mailtrap / Custom SMTP).
+    """
     import smtplib
+    from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
 
-    smtp_server = os.environ.get('SMTP_SERVER')
+    smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
     smtp_port = int(os.environ.get('SMTP_PORT', 587))
     smtp_user = os.environ.get('SMTP_USER')
     smtp_pass = os.environ.get('SMTP_PASS')
 
-    if smtp_server and smtp_user and smtp_pass:
-        try:
-            msg = MIMEText(f"Your NetPulse NOC Password Reset OTP Code is: {otp_code}\n\nThis code expires in 10 minutes.")
-            msg['Subject'] = 'NetPulse NOC Password Reset Verification OTP'
-            msg['From'] = smtp_user
-            msg['To'] = to_email
+    if not smtp_user or not smtp_pass:
+        print(f"[SECURITY ALERT] SMTP_USER or SMTP_PASS environment variables not configured. OTP generated for {to_email}.")
+        return False
 
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_pass)
-                server.send_message(msg)
-            return True
-        except Exception as e:
-            print(f"SMTP Email Send Failed: {e}")
-            return False
-    return False
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'NetPulse NOC — Password Reset Verification OTP Code'
+        msg['From'] = f"NetPulse NOC Security <{smtp_user}>"
+        msg['To'] = to_email
+
+        text_content = f"Your NetPulse NOC Password Reset OTP Code is: {otp_code}\n\nThis verification code expires in 10 minutes."
+        html_content = f"""
+        <html>
+          <body style="font-family: Arial, sans-serif; background-color: #0b0f19; color: #f8fafc; padding: 20px;">
+            <div style="max-width: 500px; margin: 0 auto; background-color: #151c2c; border: 1px solid #243048; border-radius: 12px; padding: 24px;">
+              <h2 style="color: #38bdf8; margin-top: 0;">NetPulse NOC Password Reset</h2>
+              <p style="color: #94a3b8; font-size: 14px;">You requested a password reset for your NOC operator account (<strong>{to_email}</strong>).</p>
+              <div style="background-color: #0b0f19; border: 1px solid #38bdf8; padding: 16px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                <span style="font-size: 12px; color: #94a3b8; display: block; text-transform: uppercase;">Your 6-Digit OTP Code</span>
+                <span style="font-size: 28px; font-weight: bold; color: #ffffff; letter-spacing: 6px;">{otp_code}</span>
+              </div>
+              <p style="color: #94a3b8; font-size: 12px;">This verification code will expire in 10 minutes. If you did not request this code, please ignore this message.</p>
+              <hr style="border: 0; border-top: 1px solid #243048; margin-top: 20px;" />
+              <p style="color: #64748b; font-size: 10px; text-align: center; margin-bottom: 0;">NetPulse Network Operations Center Management Console</p>
+            </div>
+          </body>
+        </html>
+        """
+
+        msg.attach(MIMEText(text_content, 'plain'))
+        msg.attach(MIMEText(html_content, 'html'))
+
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+
+        print(f"[SUCCESS 200] OTP email successfully dispatched to {to_email} via SMTP.")
+        return True
+    except Exception as e:
+        print(f"[ERROR] Failed to dispatch OTP email via SMTP to {to_email}: {e}")
+        return False
 
 # ==========================================
 # PUBLIC & INDEX ROUTES
@@ -171,7 +200,7 @@ def forgot_password():
 
     user = User.query.filter_by(email=email).first()
     if not user:
-        return jsonify({'message': 'If this account exists, an OTP verification code has been dispatched.'}), 200
+        return jsonify({'message': 'If an account exists with this email address, an OTP verification code has been dispatched to your inbox.'}), 200
 
     # Generate 6-digit OTP code
     otp_code = str(random.randint(100000, 999999))
@@ -186,16 +215,15 @@ def forgot_password():
         expires_at=expires_at
     )
     db.session.add(otp_record)
-    log_activity('Forgot Password', email, f'Generated OTP verification code {otp_code} for {email}.')
-    create_notification('Password Reset Requested', f'OTP generated for operator {email}. OTP: {otp_code}', 'warning')
+    log_activity('Forgot Password', email, f'Generated OTP password reset verification request for {email}.')
+    create_notification('Password Reset Requested', f'OTP verification code sent to {email}.', 'warning')
     db.session.commit()
 
-    # Send email
+    # Send email to user's real email inbox
     email_sent = send_otp_email(email, otp_code)
 
     return jsonify({
-        'message': f'OTP verification code generated for {email}.',
-        'otp_preview': otp_code,
+        'message': f'OTP verification code has been dispatched to {email}. Please check your email inbox.',
         'email_sent': email_sent
     }), 200
 
