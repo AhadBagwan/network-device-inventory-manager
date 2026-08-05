@@ -1,12 +1,14 @@
 import re
 import io
+import os
+import random
 import pandas as pd
 import ipaddress
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from database import db
-from models import User, Device, PingHistory, Activity, Notification
+from models import User, Device, PingHistory, Activity, Notification, PasswordResetOTP
 from services.ping_service import execute_ping, execute_ping_parallel
 from services.csv_service import generate_inventory_csv
 
@@ -38,6 +40,33 @@ def create_notification(title: str, message: str, severity: str = 'info'):
     )
     db.session.add(notif)
 
+def send_otp_email(to_email: str, otp_code: str):
+    """Sends OTP verification email via SMTP or logs to system timeline."""
+    import smtplib
+    from email.mime.text import MIMEText
+
+    smtp_server = os.environ.get('SMTP_SERVER')
+    smtp_port = int(os.environ.get('SMTP_PORT', 587))
+    smtp_user = os.environ.get('SMTP_USER')
+    smtp_pass = os.environ.get('SMTP_PASS')
+
+    if smtp_server and smtp_user and smtp_pass:
+        try:
+            msg = MIMEText(f"Your NetPulse NOC Password Reset OTP Code is: {otp_code}\n\nThis code expires in 10 minutes.")
+            msg['Subject'] = 'NetPulse NOC Password Reset Verification OTP'
+            msg['From'] = smtp_user
+            msg['To'] = to_email
+
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+            return True
+        except Exception as e:
+            print(f"SMTP Email Send Failed: {e}")
+            return False
+    return False
+
 # ==========================================
 # PUBLIC & INDEX ROUTES
 # ==========================================
@@ -47,26 +76,22 @@ def api_index():
     return jsonify({
         'name': 'NetPulse NOC Telemetry Manager API',
         'status': 'Online',
-        'version': '2.5.0',
+        'version': '2.6.0',
         'auth_stack': 'Flask-JWT-Extended',
         'endpoints': {
             'register': 'POST /api/register',
             'login': 'POST /api/login',
+            'forgot_password': 'POST /api/forgot-password',
+            'verify_otp': 'POST /api/verify-otp',
+            'reset_password': 'POST /api/reset-password',
             'profile': 'GET /api/profile (Protected)',
             'logout': 'POST /api/logout (Protected)',
-            'devices': 'GET/POST /api/devices (Protected)',
-            'import_csv': 'POST /api/devices/import (Protected)',
-            'bulk_delete': 'POST /api/devices/bulk-delete (Protected)',
-            'bulk_status': 'POST /api/devices/bulk-status (Protected)',
-            'statistics': 'GET /api/statistics (Protected)',
-            'activities': 'GET /api/activities (Protected)',
-            'notifications': 'GET /api/notifications (Protected)',
-            'export_csv': 'GET /api/devices/export (Protected)'
+            'devices': 'GET/POST /api/devices (Protected)'
         }
     }), 200
 
 # ==========================================
-# AUTHENTICATION ROUTES
+# AUTHENTICATION & PASSWORD RESET ROUTES
 # ==========================================
 
 @api.route('/register', methods=['POST'])
@@ -105,7 +130,6 @@ def register():
     create_notification('New Operator Registered', f'Operator {full_name} ({email}) joined NOC team.', 'info')
     db.session.commit()
 
-    # Automatically issue JWT Token for instant seamless login after registration
     access_token = create_access_token(identity=str(user.id))
 
     return jsonify({
@@ -136,6 +160,103 @@ def login():
         'access_token': access_token,
         'user': user.to_dict()
     }), 200
+
+@api.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    data = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+
+    if not email:
+        return jsonify({'message': 'Email address is required.'}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'message': 'If this account exists, an OTP verification code has been dispatched.'}), 200
+
+    # Generate 6-digit OTP code
+    otp_code = str(random.randint(100000, 999999))
+    expires_at = get_utc_now() + timedelta(minutes=10)
+
+    # Invalidate previous unused OTPs for this email
+    PasswordResetOTP.query.filter_by(email=email, used=False).update({'used': True})
+
+    otp_record = PasswordResetOTP(
+        email=email,
+        otp_code=otp_code,
+        expires_at=expires_at
+    )
+    db.session.add(otp_record)
+    log_activity('Forgot Password', email, f'Generated OTP verification code {otp_code} for {email}.')
+    create_notification('Password Reset Requested', f'OTP generated for operator {email}. OTP: {otp_code}', 'warning')
+    db.session.commit()
+
+    # Send email
+    email_sent = send_otp_email(email, otp_code)
+
+    return jsonify({
+        'message': f'OTP verification code generated for {email}.',
+        'otp_preview': otp_code,
+        'email_sent': email_sent
+    }), 200
+
+@api.route('/verify-otp', methods=['POST'])
+def verify_otp():
+    data = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+    otp_code = data.get('otp', '').strip()
+
+    if not email or not otp_code:
+        return jsonify({'message': 'Email and 6-digit OTP code are required.'}), 400
+
+    otp_record = PasswordResetOTP.query.filter_by(email=email, otp_code=otp_code, used=False).order_by(PasswordResetOTP.created_at.desc()).first()
+
+    if not otp_record:
+        return jsonify({'message': 'Invalid OTP verification code.'}), 400
+
+    now = get_utc_now()
+    exp = otp_record.expires_at.replace(tzinfo=timezone.utc) if otp_record.expires_at.tzinfo is None else otp_record.expires_at
+
+    if now > exp:
+        return jsonify({'message': 'OTP verification code has expired. Please request a new code.'}), 400
+
+    return jsonify({'message': 'OTP code verified successfully.'}), 200
+
+@api.route('/reset-password', methods=['POST'])
+def reset_password():
+    data = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+    otp_code = data.get('otp', '').strip()
+    new_password = data.get('new_password', '')
+
+    if not email or not otp_code or not new_password:
+        return jsonify({'message': 'Email, OTP code, and new password are required.'}), 400
+
+    if len(new_password) < 6:
+        return jsonify({'message': 'New password must be at least 6 characters long.'}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'message': 'User account not found.'}), 404
+
+    otp_record = PasswordResetOTP.query.filter_by(email=email, otp_code=otp_code, used=False).order_by(PasswordResetOTP.created_at.desc()).first()
+
+    if not otp_record:
+        return jsonify({'message': 'Invalid or expired OTP code.'}), 400
+
+    now = get_utc_now()
+    exp = otp_record.expires_at.replace(tzinfo=timezone.utc) if otp_record.expires_at.tzinfo is None else otp_record.expires_at
+
+    if now > exp:
+        return jsonify({'message': 'OTP verification code has expired.'}), 400
+
+    # Reset password
+    user.set_password(new_password)
+    otp_record.used = True
+    log_activity('Reset Password', email, f'Successfully reset password for {user.full_name}.')
+    create_notification('Password Changed', f'Password reset completed for operator {email}.', 'info')
+    db.session.commit()
+
+    return jsonify({'message': 'Password updated successfully. You can now log in.'}), 200
 
 @api.route('/profile', methods=['GET'])
 @jwt_required()

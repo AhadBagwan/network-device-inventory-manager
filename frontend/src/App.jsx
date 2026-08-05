@@ -11,6 +11,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import Guide from './pages/Guide';
@@ -19,7 +20,6 @@ import Settings from './pages/Settings';
 
 const App = () => {
   const [showSplash, setShowSplash] = useState(() => {
-    // Show splash once per browser session
     const hasSeenSplash = sessionStorage.getItem('netpulse_splash_seen');
     if (!hasSeenSplash) {
       sessionStorage.setItem('netpulse_splash_seen', 'true');
@@ -39,6 +39,7 @@ const App = () => {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
 
             {/* Protected NOC Operator Routes */}
             <Route

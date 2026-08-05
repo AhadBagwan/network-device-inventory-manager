@@ -27,7 +27,7 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('netpulse_jwt_token');
       localStorage.removeItem('netpulse_user');
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/register' && window.location.pathname !== '/') {
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register' && window.location.pathname !== '/forgot-password' && window.location.pathname !== '/') {
         window.location.href = '/login';
       }
     }
@@ -76,6 +76,21 @@ export const bulkDeleteDevices = async (deviceIds) => {
 
 export const bulkUpdateDeviceStatus = async (deviceIds, status) => {
   const response = await api.post('/devices/bulk-status', { device_ids: deviceIds, status });
+  return response.data;
+};
+
+export const requestForgotPasswordOtp = async (email) => {
+  const response = await api.post('/forgot-password', { email });
+  return response.data;
+};
+
+export const verifyForgotPasswordOtp = async (email, otp) => {
+  const response = await api.post('/verify-otp', { email, otp });
+  return response.data;
+};
+
+export const resetPasswordWithOtp = async (email, otp, newPassword) => {
+  const response = await api.post('/reset-password', { email, otp, new_password: newPassword });
   return response.data;
 };
 

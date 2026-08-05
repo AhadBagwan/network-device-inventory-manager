@@ -116,13 +116,12 @@ const Login = () => {
                 <label className="font-semibold text-[var(--text-main)]">
                   Password
                 </label>
-                <button
-                  type="button"
-                  onClick={() => toast('Password reset link has been dispatched to your NOC supervisor.', { icon: '🔒' })}
+                <Link
+                  to="/forgot-password"
                   className="text-[10px] font-mono text-[var(--text-muted)] hover:text-[var(--accent-color)]"
                 >
                   Forgot Password?
-                </button>
+                </Link>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[var(--text-muted)]">

@@ -30,6 +30,19 @@ class User(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
+class PasswordResetOTP(db.Model):
+    __tablename__ = 'password_reset_otps'
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), nullable=False, index=True)
+    otp_code = db.Column(db.String(6), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
+
+    def is_valid(self):
+        return not self.used and datetime.now(timezone.utc) < self.expires_at.replace(tzinfo=timezone.utc) if self.expires_at.tzinfo is None else datetime.now(timezone.utc) < self.expires_at
+
 class Device(db.Model):
     __tablename__ = 'devices'
 
