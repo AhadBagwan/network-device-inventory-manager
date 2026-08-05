@@ -13,7 +13,6 @@ from services.csv_service import generate_inventory_csv
 api = Blueprint('api', __name__)
 
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-PASSWORD_REGEX = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_#^()-])[A-Za-z\d@$!%*?&_#^()-]{8,}$')
 MAC_REGEX = re.compile(r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$|^([0-9A-Fa-f]{4}\.){2}([0-9A-Fa-f]{4})$')
 
 def get_utc_now():
@@ -48,7 +47,7 @@ def api_index():
     return jsonify({
         'name': 'NetPulse NOC Telemetry Manager API',
         'status': 'Online',
-        'version': '2.4.0',
+        'version': '2.5.0',
         'auth_stack': 'Flask-JWT-Extended',
         'endpoints': {
             'register': 'POST /api/register',
@@ -92,10 +91,8 @@ def register():
 
     if not password:
         errors['password'] = 'Password is required.'
-    elif len(password) < 8:
-        errors['password'] = 'Password must be at least 8 characters long.'
-    elif not PASSWORD_REGEX.match(password):
-        errors['password'] = 'Password must include uppercase, lowercase, number, and special character.'
+    elif len(password) < 6:
+        errors['password'] = 'Password must be at least 6 characters long.'
 
     if errors:
         return jsonify({'errors': errors}), 400
@@ -108,8 +105,12 @@ def register():
     create_notification('New Operator Registered', f'Operator {full_name} ({email}) joined NOC team.', 'info')
     db.session.commit()
 
+    # Automatically issue JWT Token for instant seamless login after registration
+    access_token = create_access_token(identity=str(user.id))
+
     return jsonify({
-        'message': 'Account created successfully. Please log in.',
+        'message': 'Account created and authenticated successfully.',
+        'access_token': access_token,
         'user': user.to_dict()
     }), 201
 
@@ -257,14 +258,12 @@ def get_devices():
         query = query.order_by(sort_attr.asc())
 
     devices = query.all()
-    # include_history=False eliminates N+1 query overhead in bulk table lists!
     return jsonify([d.to_dict(include_history=False) for d in devices]), 200
 
 @api.route('/devices/<int:device_id>', methods=['GET'])
 @jwt_required()
 def get_device(device_id):
     device = Device.query.get_or_404(device_id)
-    # include_history=True fetches history for single device detail view
     return jsonify(device.to_dict(include_history=True)), 200
 
 @api.route('/devices', methods=['POST'])
@@ -531,7 +530,6 @@ def ping_single_device(device_id):
 def ping_all_devices():
     devices = Device.query.all()
     
-    # Execute Multi-Threaded Parallel ICMP Probing
     probed_results = execute_ping_parallel(devices, max_workers=15)
 
     results = []

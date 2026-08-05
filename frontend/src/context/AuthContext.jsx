@@ -61,7 +61,13 @@ export const AuthProvider = ({ children }) => {
         email,
         password
       });
-      return { success: true, message: response.data.message };
+      
+      const { access_token, user: userData, message } = response.data;
+      if (access_token && userData) {
+        setToken(access_token);
+        setUser(userData);
+      }
+      return { success: true, message: message || 'Account created successfully.' };
     } catch (err) {
       if (err.response?.data?.errors) {
         return { success: false, errors: err.response.data.errors };

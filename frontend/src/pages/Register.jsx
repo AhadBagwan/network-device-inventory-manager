@@ -7,8 +7,6 @@ import {
   HiLockClosed, 
   HiEye, 
   HiEyeOff, 
-  HiCheckCircle, 
-  HiExclamationCircle,
   HiArrowRight
 } from 'react-icons/hi';
 import { HiOutlineSignal } from 'react-icons/hi2';
@@ -48,13 +46,8 @@ const Register = () => {
 
     if (!formData.password) {
       newErrors.password = 'Password is required.';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters long.';
-    } else {
-      const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_#^()-])[A-Za-z\d@$!%*?&_#^()-]{8,}$/;
-      if (!passRegex.test(formData.password)) {
-        newErrors.password = 'Password must include uppercase, lowercase, number, and special character (@$!%*?&).';
-      }
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters long.';
     }
 
     if (formData.password !== formData.confirmPassword) {
@@ -84,10 +77,10 @@ const Register = () => {
     );
 
     if (res.success) {
-      toast.success('Registration successful! Redirecting to login...');
+      toast.success('NOC Account registered & authenticated! Entering dashboard...');
       setTimeout(() => {
-        navigate('/login');
-      }, 1500);
+        navigate('/dashboard');
+      }, 1000);
     } else if (res.errors) {
       setErrors(res.errors);
       toast.error('Please resolve form validation errors.');
@@ -195,7 +188,7 @@ const Register = () => {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  placeholder="Admin@123"
+                  placeholder="Choose password"
                   className={`w-full pl-9 pr-10 py-2.5 rounded-xl bg-[var(--bg-main)] border ${
                     errors.password ? 'border-rose-500' : 'border-[var(--border-color)]'
                   } text-[var(--text-main)] font-mono focus:outline-none focus:border-[var(--accent-color)]`}
@@ -212,7 +205,7 @@ const Register = () => {
                 <p className="text-rose-400 text-[10px] mt-1 font-mono">{errors.password}</p>
               ) : (
                 <p className="text-[10px] text-[var(--text-muted)] mt-1 font-mono">
-                  Min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char (@$!%*?&)
+                  Minimum 6 characters long
                 </p>
               )}
             </div>
@@ -247,7 +240,7 @@ const Register = () => {
               disabled={loading}
               className="w-full py-3 rounded-xl bg-[var(--accent-color)] text-slate-950 font-bold shadow-lg shadow-cyan-500/20 hover:opacity-90 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 text-sm mt-2"
             >
-              <span>{loading ? 'Creating Account...' : 'Register Account'}</span>
+              <span>{loading ? 'Creating Account...' : 'Register & Log In'}</span>
               <HiArrowRight className="w-4 h-4" />
             </button>
           </form>
