@@ -17,8 +17,8 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Enable CORS for all routes (frontend communication)
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    # Enable CORS for all routes (frontend Vercel communication)
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
     # Initialize Flask-JWT-Extended
     jwt = JWTManager(app)
