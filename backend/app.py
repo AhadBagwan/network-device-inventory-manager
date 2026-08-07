@@ -17,8 +17,8 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Enable CORS for all routes (frontend Vercel communication)
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+    # Enable Flask-CORS
+    CORS(app)
 
     # Initialize Flask-JWT-Extended
     jwt = JWTManager(app)
@@ -31,20 +31,27 @@ def create_app():
     def expired_token_response(jwt_header, jwt_payload):
         return jsonify({'message': 'Authorization token has expired. Please log in again.'}), 401
 
-    # Intercept OPTIONS preflight requests instantly
+    # Intercept OPTIONS preflight requests instantly with exact request Origin
     @app.before_request
     def handle_options_preflight():
         if request.method == 'OPTIONS':
             response = app.make_default_options_response()
-            response.headers["Access-Control-Allow-Origin"] = "*"
+            origin = request.headers.get('Origin') or '*'
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
             response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
             return response, 200
 
-    # Explicit CORS header fallback for all responses
+    # Explicit CORS headers reflecting the exact requesting Origin for browser security compliance
     @app.after_request
     def apply_cors_headers(response):
-        response.headers["Access-Control-Allow-Origin"] = "*"
+        origin = request.headers.get('Origin')
+        if origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+        else:
+            response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         return response
