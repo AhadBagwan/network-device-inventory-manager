@@ -5,7 +5,7 @@ try:
 except ImportError:
     pass
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from config import Config
@@ -31,7 +31,17 @@ def create_app():
     def expired_token_response(jwt_header, jwt_payload):
         return jsonify({'message': 'Authorization token has expired. Please log in again.'}), 401
 
-    # Explicit CORS header fallback for preflight OPTIONS & error handling
+    # Intercept OPTIONS preflight requests instantly
+    @app.before_request
+    def handle_options_preflight():
+        if request.method == 'OPTIONS':
+            response = app.make_default_options_response()
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            return response, 200
+
+    # Explicit CORS header fallback for all responses
     @app.after_request
     def apply_cors_headers(response):
         response.headers["Access-Control-Allow-Origin"] = "*"
