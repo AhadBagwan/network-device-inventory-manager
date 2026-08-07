@@ -3,16 +3,7 @@ import axios from 'axios';
 
 const AuthContext = createContext();
 
-const getApiBaseUrl = () => {
-  let envUrl = import.meta.env.VITE_API_BASE_URL || 'https://netpulse-noc-api.onrender.com/api';
-  envUrl = envUrl.trim().replace(/\/+$/, '');
-  if (!envUrl.endsWith('/api') && envUrl.startsWith('http')) {
-    envUrl = `${envUrl}/api`;
-  }
-  return envUrl;
-};
-
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = 'https://netpulse-noc-api.onrender.com/api';
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => {

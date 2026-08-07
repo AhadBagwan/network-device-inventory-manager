@@ -268,7 +268,7 @@ const SettingsModal = ({
                     </span>
                   </div>
                   <div className="text-[11px] text-[var(--text-muted)] font-mono space-y-1">
-                    <div>Flask REST Backend: Running on 127.0.0.1:5000</div>
+                    <div>Flask REST Backend: Connected to https://netpulse-noc-api.onrender.com/api</div>
                     <div>Database Driver: SQLite 3.x SQLAlchemy ORM</div>
                     <div>Telemetry Ping Mode: ICMP Raw Socket Probing (Fallback Ready)</div>
                   </div>
