@@ -10,30 +10,6 @@ SEED_USERS = [
         "email": "admin@netpulse.noc",
         "role": "Super Admin",
         "status": "Active"
-    },
-    {
-        "full_name": "John Doe",
-        "email": "john.doe@netpulse.noc",
-        "role": "Network Engineer",
-        "status": "Active"
-    },
-    {
-        "full_name": "Sarah Connor",
-        "email": "sarah.connor@netpulse.noc",
-        "role": "NOC Operations Lead",
-        "status": "Active"
-    },
-    {
-        "full_name": "Alex Mercer",
-        "email": "alex.mercer@netpulse.noc",
-        "role": "Cyber Security Specialist",
-        "status": "Active"
-    },
-    {
-        "full_name": "Ahad Bagwan",
-        "email": "bagwanahad@gmail.com",
-        "role": "Senior Infrastructure Architect",
-        "status": "Active"
     }
 ]
 
@@ -341,8 +317,7 @@ SEED_DEVICES = [
 ]
 
 def seed_database():
-    """Seeds initial team users, network devices, notifications, and telemetry logs."""
-    # Guarantee fresh user re-seeding by clearing existing users table
+    """Seeds single Super Admin account, network devices, notifications, and telemetry logs."""
     try:
         User.query.delete()
         db.session.commit()
@@ -350,7 +325,7 @@ def seed_database():
         db.session.rollback()
         print(f"Error resetting users table: {e}")
 
-    print("Re-seeding NOC team users with fresh admin password 'Admin@2026'...")
+    print("Seeding single Super Admin account...")
     for user_data in SEED_USERS:
         u = User(
             full_name=user_data['full_name'],
@@ -361,7 +336,7 @@ def seed_database():
         u.set_password("Admin@2026")
         db.session.add(u)
     db.session.commit()
-    print(f"Successfully seeded {len(SEED_USERS)} NOC operators & team users with password 'Admin@2026'.")
+    print("Successfully seeded single Super Admin user (admin@netpulse.noc / Admin@2026).")
 
     if Device.query.count() == 0:
         print("Seeding initial 15 network devices into inventory database...")

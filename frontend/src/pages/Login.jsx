@@ -8,7 +8,8 @@ import {
   HiEyeOff, 
   HiArrowRight,
   HiShieldCheck,
-  HiLightningBolt
+  HiLightningBolt,
+  HiUserAdd
 } from 'react-icons/hi';
 import { HiOutlineSignal } from 'react-icons/hi2';
 import toast, { Toaster } from 'react-hot-toast';
@@ -20,8 +21,9 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState('admin@netpulse.noc');
-  const [password, setPassword] = useState('Admin@2026');
+  // Clear inputs - no pre-filled cached credentials
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -32,12 +34,16 @@ const Login = () => {
     e.preventDefault();
     setError('');
 
+    if (!email.trim() || !password) {
+      setError('Email and password are required.');
+      return;
+    }
+
     const res = await loginUser(email, password, rememberMe);
     if (res.success) {
       toast.success(`Welcome to NOC Portal, ${res.user.full_name || 'Admin'}!`);
       navigate(from, { replace: true });
     } else {
-      // Fallback guest login on any network error
       loginGuestDemo();
       toast.success('Entered NOC Portal in Demo Access Mode.');
       navigate(from, { replace: true });
@@ -46,7 +52,7 @@ const Login = () => {
 
   const handleGuestLogin = () => {
     loginGuestDemo();
-    toast.success('Welcome! Entered NOC Portal via 1-Click Guest Access.');
+    toast.success('Welcome! Entered NOC Portal as Guest.');
     navigate('/dashboard', { replace: true });
   };
 
@@ -87,23 +93,33 @@ const Login = () => {
             </p>
           </div>
 
-          {/* 1-CLICK INSTANT DEMO BUTTON */}
-          <button
-            type="button"
-            onClick={handleGuestLogin}
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-extrabold shadow-lg shadow-cyan-500/25 hover:brightness-110 transition-all active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
-          >
-            <HiLightningBolt className="w-5 h-5 text-slate-950 animate-bounce" />
-            <span>⚡ Instant 1-Click Guest NOC Access</span>
-          </button>
+          {/* 2 PRIMARY ACCESS OPTIONS: GUEST ACCESS OR CREATE ACCOUNT */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={handleGuestLogin}
+              className="py-3 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-extrabold shadow-lg shadow-cyan-500/20 hover:brightness-110 transition-all active:scale-95 flex items-center justify-center gap-1.5 text-xs"
+            >
+              <HiLightningBolt className="w-4 h-4 text-slate-950" />
+              <span>Login as Guest</span>
+            </button>
+
+            <Link
+              to="/register"
+              className="py-3 px-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] hover:bg-[var(--bg-hover)] font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 text-xs text-center"
+            >
+              <HiUserAdd className="w-4 h-4 text-[var(--accent-color)]" />
+              <span>Create Account</span>
+            </Link>
+          </div>
 
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-[var(--border-color)]" />
-            <span className="text-[10px] uppercase font-mono text-[var(--text-muted)]">or sign in with password</span>
+            <span className="text-[10px] uppercase font-mono text-[var(--text-muted)]">or login with credentials</span>
             <div className="flex-1 h-px bg-[var(--border-color)]" />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          <form onSubmit={handleSubmit} className="space-y-4 text-xs" autoComplete="off">
             {error && (
               <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 font-mono text-[11px]">
                 {error}
@@ -124,7 +140,8 @@ const Login = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="admin@netpulse.noc"
+                  autoComplete="off"
+                  placeholder="Enter email address"
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] font-mono focus:outline-none focus:border-[var(--accent-color)]"
                 />
               </div>
@@ -152,7 +169,8 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="Admin@2026"
+                  autoComplete="new-password"
+                  placeholder="Enter password"
                   className="w-full pl-9 pr-10 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] font-mono focus:outline-none focus:border-[var(--accent-color)]"
                 />
                 <button
@@ -183,17 +201,10 @@ const Login = () => {
               disabled={loading}
               className="w-full py-3 rounded-xl bg-[var(--accent-color)] text-slate-950 font-bold shadow-lg shadow-cyan-500/20 hover:opacity-90 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 text-sm mt-2"
             >
-              <span>{loading ? 'Authenticating...' : 'Sign In to Dashboard'}</span>
+              <span>{loading ? 'Authenticating...' : 'Sign In with Password'}</span>
               <HiArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          <div className="text-center text-xs text-[var(--text-muted)] font-mono pt-2 border-t border-[var(--border-color)]">
-            Don't have an administrator account?{' '}
-            <Link to="/register" className="text-[var(--accent-color)] font-bold hover:underline">
-              Create Account
-            </Link>
-          </div>
         </motion.div>
       </div>
 
