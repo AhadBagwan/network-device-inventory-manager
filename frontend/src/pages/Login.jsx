@@ -21,7 +21,6 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Clear inputs - no pre-filled cached credentials
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -41,12 +40,11 @@ const Login = () => {
 
     const res = await loginUser(email, password, rememberMe);
     if (res.success) {
-      toast.success(`Welcome to NOC Portal, ${res.user.full_name || 'Admin'}!`);
+      toast.success(`Welcome back, ${res.user.full_name || 'Operator'}!`);
       navigate(from, { replace: true });
     } else {
-      loginGuestDemo();
-      toast.success('Entered NOC Portal in Demo Access Mode.');
-      navigate(from, { replace: true });
+      setError(res.message);
+      toast.error(res.message);
     }
   };
 
