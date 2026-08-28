@@ -91,20 +91,20 @@ const Login = () => {
             </p>
           </div>
 
-          {/* 2 PRIMARY ACCESS OPTIONS: GUEST ACCESS OR CREATE ACCOUNT */}
+          {/* 2 EQUAL NORMAL ACCESS OPTIONS: GUEST ACCESS OR CREATE ACCOUNT */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               type="button"
               onClick={handleGuestLogin}
-              className="py-3 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-extrabold shadow-lg shadow-cyan-500/20 hover:brightness-110 transition-all active:scale-95 flex items-center justify-center gap-1.5 text-xs"
+              className="py-3 px-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] hover:bg-[var(--bg-hover)] hover:text-[var(--accent-color)] font-semibold transition-all active:scale-95 flex items-center justify-center gap-1.5 text-xs"
             >
-              <HiLightningBolt className="w-4 h-4 text-slate-950" />
+              <HiLightningBolt className="w-4 h-4 text-[var(--accent-color)]" />
               <span>Login as Guest</span>
             </button>
 
             <Link
               to="/register"
-              className="py-3 px-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] hover:bg-[var(--bg-hover)] font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 text-xs text-center"
+              className="py-3 px-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] hover:bg-[var(--bg-hover)] hover:text-[var(--accent-color)] font-semibold transition-all active:scale-95 flex items-center justify-center gap-1.5 text-xs text-center"
             >
               <HiUserAdd className="w-4 h-4 text-[var(--accent-color)]" />
               <span>Create Account</span>
